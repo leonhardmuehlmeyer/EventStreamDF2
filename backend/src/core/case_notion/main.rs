@@ -7,28 +7,24 @@ mod utils;
 use advanced::advanced_case_notion_for_ot;
 use connected_component::connected_components_notion;
 use measures::{
-    absolute_simplicity_of_case_notion,
-    correctness_of_case_notion,
-    extended_simplicity_of_case_notion,
-    fuzzy_homogeneity_of_case_notion,
-    fuzzy_homogeneity_of_case_notion_v2,
-    normal_simplicity_of_case_notion,
+    absolute_simplicity_of_case_notion, correctness_of_case_notion,
+    extended_simplicity_of_case_notion, fuzzy_homogeneity_of_case_notion,
+    fuzzy_homogeneity_of_case_notion_v2, normal_simplicity_of_case_notion,
     strict_homogeneity_of_case_notion,
 };
 use traditional::traditional_case_notion_for_ot;
 use utils::{
-    build_event_identifiers,
-    build_object_identifiers,
-    detect_diverging_object_types,
+    build_event_identifiers, build_object_identifiers, detect_diverging_object_types,
     map_object_id_to_type,
 };
 
-use anyhow::{anyhow, Context, Result};
-use process_mining::{import_ocel_json_from_path, import_ocel_xml_file, OCEL};
+use anyhow::{Context, Result, anyhow};
+use process_mining::{OCEL, import_ocel_json_from_path, import_ocel_xml_file};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use std::{
+    cmp::Ordering,
     collections::BTreeSet,
     env,
     fs::File,
@@ -58,6 +54,37 @@ struct RuntimeCaseNotion {
     time: f64,
     method: String,
     case_notions: Vec<ResultCaseNotion>,
+}
+
+#[derive(Serialize)]
+struct CaseNotionArch {
+    source: String,
+    target: String,
+}
+
+#[derive(Serialize)]
+struct CaseNotionCase {
+    events: Vec<String>,
+    objects: Vec<String>,
+    arches: Vec<CaseNotionArch>,
+}
+
+#[derive(Serialize)]
+struct CaseNotionGraphOutput {
+    case_notion: String,
+    name_of_event_log: String,
+    object_type: String,
+    cases: Vec<CaseNotionCase>,
+}
+
+struct CaseNotionComputation {
+    results: Vec<ResultCaseNotion>,
+    graphs: Vec<CaseNotionGraphOutput>,
+}
+
+struct MethodExecution {
+    runtime: RuntimeCaseNotion,
+    graphs: Vec<CaseNotionGraphOutput>,
 }
 
 #[derive(Clone, Copy)]
@@ -99,10 +126,7 @@ fn main() {
 fn run() -> Result<()> {
     let log_path = obtain_input_path()?;
     if !log_path.exists() {
-        return Err(anyhow!(
-            "input path does not exist: {}",
-            log_path.display()
-        ));
+        return Err(anyhow!("input path does not exist: {}", log_path.display()));
     }
 
     let log = load_log(&log_path)?;
@@ -121,12 +145,21 @@ fn run() -> Result<()> {
 
     for &method in &methods {
         println!("Executing {}...", method.case_label());
-        let runtime = execute_method(&log, &log_name, method);
+        let method_execution = execute_method(&log, &log_name, method);
         let output_name = format!("{log_name_slug}_{}.json", method.file_suffix());
-        write_json(&runtime.case_notions, Path::new(&output_name))
-            .with_context(|| format!("failed to write results for {}", method.key()))?;
+        write_json(
+            &method_execution.runtime.case_notions,
+            Path::new(&output_name),
+        )
+        .with_context(|| format!("failed to write results for {}", method.key()))?;
         println!("  wrote {}", output_name);
-        runtime_results.push(runtime);
+
+        let graph_output_name = format!("{log_name_slug}_{}_graphs.json", method.file_suffix());
+        write_json(&method_execution.graphs, Path::new(&graph_output_name))
+            .with_context(|| format!("failed to write graph data for {}", method.key()))?;
+        println!("  wrote {}", graph_output_name);
+
+        runtime_results.push(method_execution.runtime);
     }
 
     let summary_file = format!("{log_name_slug}_summary.json");
@@ -137,17 +170,22 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn execute_method(log: &OCEL, log_name: &str, method: CaseMethod) -> RuntimeCaseNotion {
+fn execute_method(log: &OCEL, log_name: &str, method: CaseMethod) -> MethodExecution {
     let log_clone = log.clone();
     let start = Instant::now();
-    let case_notions = execute_case_notion(log_clone, log_name, method);
+    let computation = execute_case_notion(log_clone, log_name, method);
     let elapsed = start.elapsed().as_secs_f64();
 
-    RuntimeCaseNotion {
+    let runtime = RuntimeCaseNotion {
         name_of_event_log: log_name.to_string(),
         time: elapsed,
         method: method.key().to_string(),
-        case_notions,
+        case_notions: computation.results,
+    };
+
+    MethodExecution {
+        runtime,
+        graphs: computation.graphs,
     }
 }
 
@@ -155,7 +193,7 @@ fn execute_case_notion(
     log_res_ocel: OCEL,
     log_name: &str,
     method: CaseMethod,
-) -> Vec<ResultCaseNotion> {
+) -> CaseNotionComputation {
     let total_number_of_events = log_res_ocel.events.len();
     let total_number_of_objects = log_res_ocel.objects.len();
 
@@ -173,8 +211,7 @@ fn execute_case_notion(
 
     let event_identifiers =
         build_event_identifiers(&log_res_ocel.events, &obj_id_to_type, &unique_object_types);
-    let object_identifiers =
-        build_object_identifiers(&log_res_ocel.objects, &log_res_ocel.events);
+    let object_identifiers = build_object_identifiers(&log_res_ocel.objects, &log_res_ocel.events);
 
     let cleaned_event_identifiers: FxHashMap<String, (String, BTreeSet<String>)> =
         event_identifiers
@@ -199,8 +236,10 @@ fn execute_case_notion(
                 &unique_object_types,
                 &unique_activities,
             );
+            let case_label = method.case_label().to_string();
+            let log_name_owned = log_name.to_string();
 
-            let mut results: Vec<ResultCaseNotion> = sorted_object_types
+            let mut outputs: Vec<(ResultCaseNotion, CaseNotionGraphOutput)> = sorted_object_types
                 .par_iter()
                 .map(|object_type| {
                     let case_notion = advanced_case_notion_for_ot(
@@ -220,21 +259,36 @@ fn execute_case_notion(
                     );
                     let total_score = average_score(&measures);
 
-                    ResultCaseNotion {
-                        case_notion: method.case_label().to_string(),
-                        name_of_event_log: log_name.to_string(),
+                    let result = ResultCaseNotion {
+                        case_notion: case_label.clone(),
+                        name_of_event_log: log_name_owned.clone(),
                         object_type: object_type.clone(),
                         measures,
                         total_score,
-                    }
+                    };
+
+                    let graph_output = CaseNotionGraphOutput {
+                        case_notion: case_label.clone(),
+                        name_of_event_log: log_name_owned.clone(),
+                        object_type: object_type.clone(),
+                        cases: case_notion_to_cases(&case_notion),
+                    };
+
+                    (result, graph_output)
                 })
                 .collect();
 
-            results.sort_by(|a, b| a.object_type.cmp(&b.object_type));
-            results
+            outputs.sort_by(|a, b| a.0.object_type.cmp(&b.0.object_type));
+            let (results, graphs): (Vec<_>, Vec<_>) = outputs.into_iter().unzip();
+
+            CaseNotionComputation { results, graphs }
         }
         CaseMethod::Traditional => {
+            let case_label = method.case_label().to_string();
+            let log_name_owned = log_name.to_string();
             let mut results = Vec::new();
+            let mut graphs = Vec::new();
+
             for object_type in &sorted_object_types {
                 let case_notion =
                     traditional_case_notion_for_ot(&object_identifiers, object_type.clone());
@@ -250,16 +304,26 @@ fn execute_case_notion(
                 let total_score = average_score(&measures);
 
                 results.push(ResultCaseNotion {
-                    case_notion: method.case_label().to_string(),
-                    name_of_event_log: log_name.to_string(),
+                    case_notion: case_label.clone(),
+                    name_of_event_log: log_name_owned.clone(),
                     object_type: object_type.clone(),
                     measures,
                     total_score,
                 });
+
+                graphs.push(CaseNotionGraphOutput {
+                    case_notion: case_label.clone(),
+                    name_of_event_log: log_name_owned.clone(),
+                    object_type: object_type.clone(),
+                    cases: case_notion_to_cases(&case_notion),
+                });
             }
-            results
+
+            CaseNotionComputation { results, graphs }
         }
         CaseMethod::ConnectedComponents => {
+            let case_label = method.case_label().to_string();
+            let log_name_owned = log_name.to_string();
             let case_notion = connected_components_notion(
                 cleaned_event_identifiers.clone(),
                 object_identifiers.clone(),
@@ -275,13 +339,22 @@ fn execute_case_notion(
             );
             let total_score = average_score(&measures);
 
-            vec![ResultCaseNotion {
-                case_notion: method.case_label().to_string(),
-                name_of_event_log: log_name.to_string(),
+            let results = vec![ResultCaseNotion {
+                case_notion: case_label.clone(),
+                name_of_event_log: log_name_owned.clone(),
                 object_type: "None".to_string(),
                 measures,
                 total_score,
-            }]
+            }];
+
+            let graphs = vec![CaseNotionGraphOutput {
+                case_notion: case_label,
+                name_of_event_log: log_name_owned,
+                object_type: "None".to_string(),
+                cases: case_notion_to_cases(&case_notion),
+            }];
+
+            CaseNotionComputation { results, graphs }
         }
     }
 }
@@ -322,11 +395,8 @@ fn calculate_measures(
     );
     let fuzzy_homogeneity =
         fuzzy_homogeneity_of_case_notion(case_notion, event_identifiers, object_identifiers);
-    let fuzzy_homogeneity_v2 = fuzzy_homogeneity_of_case_notion_v2(
-        case_notion,
-        event_identifiers,
-        object_identifiers,
-    );
+    let fuzzy_homogeneity_v2 =
+        fuzzy_homogeneity_of_case_notion_v2(case_notion, event_identifiers, object_identifiers);
     let strict_homogeneity =
         strict_homogeneity_of_case_notion(case_notion, event_identifiers, object_identifiers);
 
@@ -370,9 +440,55 @@ fn average_score(measures: &[Measure]) -> f64 {
     }
 }
 
+fn case_notion_to_cases(
+    case_notion: &FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)>,
+) -> Vec<CaseNotionCase> {
+    let mut cases: Vec<CaseNotionCase> = case_notion
+        .iter()
+        .map(|(events, objects, arches)| {
+            let mut events_sorted = events.clone();
+            events_sorted.sort();
+
+            let mut objects_sorted = objects.clone();
+            objects_sorted.sort();
+
+            let mut edges: Vec<CaseNotionArch> = arches
+                .iter()
+                .map(|(source, target)| CaseNotionArch {
+                    source: source.clone(),
+                    target: target.clone(),
+                })
+                .collect();
+            edges.sort_by(|a, b| {
+                let mut ordering = a.source.cmp(&b.source);
+                if ordering == Ordering::Equal {
+                    ordering = a.target.cmp(&b.target);
+                }
+                ordering
+            });
+
+            CaseNotionCase {
+                events: events_sorted,
+                objects: objects_sorted,
+                arches: edges,
+            }
+        })
+        .collect();
+
+    cases.sort_by(|a, b| {
+        let mut ordering = a.events.cmp(&b.events);
+        if ordering == Ordering::Equal {
+            ordering = a.objects.cmp(&b.objects);
+        }
+        ordering
+    });
+
+    cases
+}
+
 fn write_json<T: Serialize>(value: &T, output_path: &Path) -> Result<()> {
-    let file = File::create(output_path)
-        .with_context(|| format!("create {}", output_path.display()))?;
+    let file =
+        File::create(output_path).with_context(|| format!("create {}", output_path.display()))?;
     let writer = BufWriter::new(file);
     serde_json::to_writer_pretty(writer, value)
         .with_context(|| format!("serialize {}", output_path.display()))?;
@@ -434,4 +550,3 @@ fn sanitize_for_file_name(input: &str) -> String {
         })
         .collect()
 }
-
