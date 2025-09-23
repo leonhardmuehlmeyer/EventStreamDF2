@@ -7,6 +7,7 @@ use rayon::vec;
 
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
@@ -1144,6 +1145,32 @@ fn correctness_of_case_notion(
     let correctness = (a_c as f64 / a as f64 + o_c as f64 / o as f64 + e_c as f64 / e as f64) / 3.0;
     correctness
 }
+fn load_ocel_from_path(path: &str) -> Option<OCEL> {
+    let extension = Path::new(path)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_ascii_lowercase());
+
+    match extension.as_deref() {
+        Some("json") => match import_ocel_json_from_path(path) {
+            Ok(log) => Some(log),
+            Err(err) => {
+                eprintln!("Failed to import JSON OCEL from {path}: {err:?}");
+                None
+            }
+        },
+        Some("xml") | Some("xmlocel") => Some(import_ocel_xml_file(path)),
+        Some(other) => {
+            eprintln!("Unsupported OCEL extension `{other}` for path {path}");
+            None
+        }
+        None => {
+            eprintln!("Could not determine file extension for path {path}");
+            None
+        }
+    }
+}
+
 fn main() {
     // let log = create_leading_example_log();
     // // write log to file
@@ -1169,11 +1196,11 @@ fn main() {
     // return;
 
     let log_paths =
-        vec![r"C:\Users\Postb\Documents\GitHub\scope\example_data\ocel\order-management.xmlocel"];
+        vec![r"C:\Users\Postb\Documents\GitHub\scope\example_data\ocel\order-management.json"];
 
     // Create (or overwrite) the output file.
     // let file_path = "results_absolute_simplicity_(0.8, 10).json";
-    let file_path = "bpic17+19-results_all_measures_extended_simplicity=(0.6, 20).json";
+    let file_path = "order-management_json2.json";
     let mut file = File::create(file_path).expect("Unable to create file");
 
     let methods = vec!["acn_mt", "tdcn", "cccn"];
@@ -1183,16 +1210,19 @@ fn main() {
     // for log in logs..
     // TODO: split results into 2 files. one contains runtime (whole case notion), the other the measurements (per case notion per object type)
     for log_path in log_paths {
-        let name_of_event_log = log_path
-            .split('/')
-            .last()
-            .unwrap_or("unknown_event_log")
-            .split('.')
-            .next()
+        let name_of_event_log = Path::new(log_path)
+            .file_stem()
+            .and_then(|stem| stem.to_str())
             .unwrap_or("unknown_event_log")
             .to_string();
         println!("Processing log: {}", name_of_event_log);
-        let log = import_ocel_xml_file(log_path);
+        let log = match load_ocel_from_path(log_path) {
+            Some(log) => log,
+            None => {
+                eprintln!("Skipping log due to previous errors: {log_path}");
+                continue;
+            }
+        };
 
         for method in &methods {
             use std::time::Instant;
