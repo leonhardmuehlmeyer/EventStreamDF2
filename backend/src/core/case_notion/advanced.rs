@@ -1,6 +1,6 @@
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::{BTreeSet};
+use std::collections::BTreeSet;
 use std::default::Default;
 
 /*
@@ -184,4 +184,3 @@ pub fn advanced_case_notion_for_ot(
 
     result
 }
-

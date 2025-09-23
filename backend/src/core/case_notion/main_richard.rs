@@ -1168,9 +1168,8 @@ fn main() {
     // .expect("error writing to file");
     // return;
 
-    let log_paths = vec![
-    r"C:\Users\Postb\Documents\GitHub\scope\example_data\ocel\order-management.xmlocel",
-    ];
+    let log_paths =
+        vec![r"C:\Users\Postb\Documents\GitHub\scope\example_data\ocel\order-management.xmlocel"];
 
     // Create (or overwrite) the output file.
     // let file_path = "results_absolute_simplicity_(0.8, 10).json";
@@ -1389,7 +1388,6 @@ fn execute_log(
         .map(|o| o.name.clone())
         .collect::<FxHashSet<String>>();
 
-    
     let unique_activities = log_res_ocel
         .event_types
         .iter()

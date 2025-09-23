@@ -1,6 +1,4 @@
-use process_mining::{
-    ocel::ocel_struct::{OCELEvent, OCELObject},
-};
+use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject};
 
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
 use rustc_hash::{FxHashMap, FxHashSet};

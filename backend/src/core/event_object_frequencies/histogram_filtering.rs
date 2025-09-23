@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use process_mining::OCEL;
+use serde::Deserialize;
 
 /// JSON structs for deserializing the user selection
 #[derive(Deserialize)]
@@ -20,8 +20,8 @@ struct SelectionPayload {
     selections: Vec<Selection>,
 }
 
-/* 
-Example JSON input: 
+/*
+Example JSON input:
 one selection per output OCEL
     - name could be used for filename
     - each selection has multiple filters
@@ -53,11 +53,12 @@ one selection per output OCEL
 /// Returns a Vec of filtered OCELs according to the user selection JSON
 pub fn filter_ocel_histograms(log: &OCEL, filters_json: &str) -> Vec<OCEL> {
     // 1. Deserialize the JSON payload
-    let payload: SelectionPayload = serde_json::from_str(filters_json)
-        .expect("Invalid JSON for filters");
+    let payload: SelectionPayload =
+        serde_json::from_str(filters_json).expect("Invalid JSON for filters");
 
     // 2. Precompute object_id -> object_type map
-    let object_index: std::collections::HashMap<&str, &str> = log.objects
+    let object_index: std::collections::HashMap<&str, &str> = log
+        .objects
         .iter()
         .map(|obj| (obj.id.as_str(), obj.object_type.as_str()))
         .collect();
@@ -112,7 +113,8 @@ pub fn filter_ocel_histograms(log: &OCEL, filters_json: &str) -> Vec<OCEL> {
             }
         }
 
-        let filtered_objects: Vec<_> = log.objects
+        let filtered_objects: Vec<_> = log
+            .objects
             .iter()
             .filter(|obj| used_objects.contains(obj.id.as_str()))
             .cloned()

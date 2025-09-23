@@ -1,6 +1,6 @@
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::{BTreeSet};
+use std::collections::BTreeSet;
 use std::default::Default;
 
 /*
