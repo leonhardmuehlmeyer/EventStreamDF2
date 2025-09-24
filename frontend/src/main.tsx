@@ -8,6 +8,7 @@ import OcptViewer from '~/routes/OcptViewer';
 import '~/index.css';
 import Explore from '~/routes/Explore';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import OcelVisualization from './components/ocel/OcelVisualization';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
     {
         path: '/data/explore/',
         element: <Explore />,
+    },
+    {
+        path: '/ocel/ocel-visualization/',
+        element: <OcelVisualization />,
     },
     {
         path: '/data/explore/ocpt/:nodeId',
