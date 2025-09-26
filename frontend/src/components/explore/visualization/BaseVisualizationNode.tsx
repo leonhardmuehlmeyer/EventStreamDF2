@@ -1,17 +1,28 @@
 import { memo } from 'react';
-import type { NodeProps } from '@xyflow/react';
 import { Eye } from 'lucide-react';
 import { Button } from '~/components/ui/button';
 import BaseExploreNode from '~/components/explore/BaseExploreNode';
 import { isFullVisualizationData } from '~/lib/explore/exploreNodes.utils';
-import type { BaseExploreNodeDropdownActionType, TVisualizationNode } from '~/types/explore';
+import type {
+    BaseExploreNodeDropdownActionType,
+    BaseExploreNodeDropdownOption,
+    BaseExploreNodeHandleOption,
+    TVisualizationNode,
+} from '~/types/explore';
 
-interface VisualizationNodeProps extends NodeProps<TVisualizationNode> {
+interface VisualizationNodeProps {
+    id: string;
+    selected: boolean;
+    data: TVisualizationNode['data'];
+    title: string;
+    iconName: string;
+    handleOptions: BaseExploreNodeHandleOption[];
+    dropdownOptions: BaseExploreNodeDropdownOption[];
     visualize: () => void;
 }
 
 const BaseVisualizationNode = memo<VisualizationNodeProps>((props) => {
-    const { data } = props;
+    const { id, selected, data, title, iconName, handleOptions, dropdownOptions, visualize } = props;
     const { assets } = data;
 
     const handleDropdownAction = (action: BaseExploreNodeDropdownActionType) => {
@@ -29,7 +40,7 @@ const BaseVisualizationNode = memo<VisualizationNodeProps>((props) => {
         if (assets.length === 1 && isFullVisualizationData(data)) {
             return (
                 <Button
-                    onClick={() => props.visualize()}
+                    onClick={visualize}
                     className="flex bg-blue-500 items-around rounded-lg w-20 h-8 px-1 justify-center"
                 >
                     <Eye className="h-4 w-4" />
@@ -63,7 +74,12 @@ const BaseVisualizationNode = memo<VisualizationNodeProps>((props) => {
 
     return (
         <BaseExploreNode
-            {...props}
+            id={id}
+            selected={selected}
+            title={title}
+            iconName={iconName}
+            handleOptions={handleOptions}
+            dropdownOptions={dropdownOptions}
             onDropdownAction={handleDropdownAction}
             customActions={renderVisualizationActions()}
             customContent={renderVisualizationContent()}

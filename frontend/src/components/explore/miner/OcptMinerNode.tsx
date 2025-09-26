@@ -3,6 +3,7 @@ import type { NodeProps } from '@xyflow/react';
 import BaseMinerNode from '~/components/explore/miner/BaseMinerNode';
 import { useGetOcpt } from '~/services/queries';
 import type { BaseExploreNodeAsset, TMinerNode } from '~/types/explore';
+import { Position } from '@xyflow/react';
 
 const OcptMinerNode = memo<NodeProps<TMinerNode>>((node) => {
     const [fileId, setFileId] = useState<null | string>(null);
@@ -33,7 +34,19 @@ const OcptMinerNode = memo<NodeProps<TMinerNode>>((node) => {
         node.data.onDataChange(node.id, { assets: updatedAssets });
     }, [data, fileName]);
 
-    return <BaseMinerNode {...node} isLoading={isLoading} />;
+    return (
+        <BaseMinerNode
+            {...node}
+            title="OCPT Miner"
+            iconName="treePine"
+            handleOptions={[
+                { position: Position.Left, type: 'target' as const },
+                { position: Position.Right, type: 'source' as const },
+            ]}
+            dropdownOptions={[{ label: 'Change Source', action: 'changeSourceFile' as const }]}
+            isLoading={isLoading}
+        />
+    );
 });
 
 export default OcptMinerNode;

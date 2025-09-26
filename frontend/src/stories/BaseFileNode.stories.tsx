@@ -1,43 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { Background, Controls, ReactFlow } from '@xyflow/react';
+import { NodeProps, ReactFlowProvider } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import BaseFileNode from '~/components/explore/file/BaseFileNode';
 import type { BaseExploreNodeDropdownOption, TFileNode } from '~/types/explore';
-
-const nodeTypes = {
-    baseFileNode: BaseFileNode,
-};
-
-const baseNodeProps: Omit<TFileNode, 'data'> = {
-    id: '1',
-    type: 'baseFileNode',
-    position: { x: 0, y: 0 },
-    selected: false,
-    dragging: false,
-    zIndex: 0,
-    width: 200,
-    height: 100,
-};
 
 const meta: Meta<typeof BaseFileNode> = {
     title: 'Explore/BaseFileNode',
     component: BaseFileNode,
     tags: ['autodocs'],
     decorators: [
-        (Story, { args }) => (
-            <div style={{ height: '300px', width: '100%' }}>
-                <ReactFlow
-                    nodeTypes={nodeTypes}
-                    nodes={[
-                        {
-                            ...baseNodeProps,
-                            data: args.data,
-                        },
-                    ]}
-                >
-                    <Background />
-                    <Controls />
-                </ReactFlow>
-            </div>
+        (Story) => (
+            <ReactFlowProvider>
+                <Story />
+            </ReactFlowProvider>
         ),
     ],
 };
@@ -53,20 +28,25 @@ const dropdownOptions: BaseExploreNodeDropdownOption[] = [
 const commonData = {
     nodeType: 'ocelFileNode' as const,
     nodeCategory: 'file' as const,
-    display: {
-        title: 'Base File Node',
-        iconName: 'File',
-    },
-    config: {
-        handleOptions: [],
-        dropdownOptions: dropdownOptions,
-        allowedAssetTypes: [],
-    },
+    allowedAssetTypes: [],
     onDataChange: () => {},
 };
 
+const baseNodeProps: Partial<NodeProps<TFileNode>> = {
+    id: '1',
+    selected: false,
+    dragging: false,
+};
+
+const handleOptions = [{ position: Position.Right, type: 'source' as const }];
+
 export const Default: Story = {
     args: {
+        ...baseNodeProps,
+        title: 'Base File Node',
+        iconName: 'File',
+        handleOptions: handleOptions,
+        dropdownOptions: dropdownOptions,
         data: {
             ...commonData,
             assets: [],
@@ -76,6 +56,11 @@ export const Default: Story = {
 
 export const WithAsset: Story = {
     args: {
+        ...baseNodeProps,
+        title: 'Base File Node',
+        iconName: 'File',
+        handleOptions: handleOptions,
+        dropdownOptions: dropdownOptions,
         data: {
             ...commonData,
             assets: [
