@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { SidebarProvider } from '~/components/ui/sidebar';
 import AppSidebar from '~/components/AppSidebar';
 import BreadcrumbNav from '~/components/BreadcrumbNav';
 import Flow from '~/components/flow/Flow';
 import OCPT from '~/components/ocpt/OCPT';
 import { useExploreFlowStore } from '~/stores/exploreStore';
-import { useColorScaleStore, useIsOcptMode } from '~/stores/store';
+import { useColorScaleStore, useFilteredObjectType, useIsOcptMode } from '~/stores/store';
 import { addIdsToTree } from '~/lib/ocpt/addIdsToOcpt';
 import type { VisualizationExploreNodeData } from '~/types/explore';
 import { type TreeNode } from '~/types/ocpt/ocpt.types';
@@ -15,9 +15,20 @@ const OcptViewer: React.FC = () => {
     const [treeData, setTreeData] = useState<TreeNode | null>(null);
     const [objectTypes, setObjectTypes] = useState<string[]>([]);
     const { nodeId } = useParams<{ nodeId: string }>();
+    const [searchParams] = useSearchParams();
     const { getNode } = useExploreFlowStore();
     const { colorScale, setColorScaleObjectTypes } = useColorScaleStore();
     const { isOcptMode } = useIsOcptMode();
+    const { setFilteredObjectTypes } = useFilteredObjectType();
+
+    useEffect(() => {
+        const filter = searchParams.get('filter');
+        if (filter) {
+            setFilteredObjectTypes(filter.split(','));
+        } else {
+            setFilteredObjectTypes(objectTypes);
+        }
+    }, [searchParams, setFilteredObjectTypes, objectTypes]);
 
     useEffect(() => {
         if (nodeId) {

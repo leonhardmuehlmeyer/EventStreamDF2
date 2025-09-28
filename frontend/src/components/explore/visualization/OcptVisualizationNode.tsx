@@ -11,8 +11,8 @@ const OcptVisualizationNode = memo<NodeProps<TVisualizationNode>>((node) => {
     const { data, isLoading } = useGetOcpt(fileId, true);
     const navigate = useNavigate();
 
-    const visualize = () => {
-        navigate(`/data/pipeline/explore/ocpt/${node.id}`);
+    const visualize = (filter?: string) => {
+        navigate(`/data/pipeline/explore/ocpt/${node.id}${filter ? `?filter=${filter}` : ''}`);
     };
 
     useMemo(() => {

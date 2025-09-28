@@ -1,14 +1,14 @@
+import { useEffect, useState } from 'react';
 import { Group } from '@visx/group';
 import { hierarchy } from '@visx/hierarchy';
+import { HierarchyNode, HierarchyPointNode } from '@visx/hierarchy/lib/types';
 import { Zoom } from '@visx/zoom';
 import { ScaleOrdinal } from 'd3';
-import { useEffect, useState } from 'react';
-import ZoomButtons from '~/components/ZoomButtons';
-import { type TreeNode } from '~/types/ocpt/ocpt.types';
 import HoverPointTooltip from '~/components/ocpt/HoverPointTooltip';
-import { HierarchyNode, HierarchyPointNode } from '@visx/hierarchy/lib/types';
-import { useFilteredObjectType } from '~/stores/store';
 import { RenderTree } from '~/components/ocpt/OcptRendering';
+import ZoomButtons from '~/components/ZoomButtons';
+import { useFilteredObjectType } from '~/stores/store';
+import { type TreeNode } from '~/types/ocpt/ocpt.types';
 
 export type OCPTProps = {
     width: number;
@@ -35,7 +35,7 @@ const OCPT: React.FC<OCPTProps> = ({
 
     useEffect(() => {
         const copyTreeData = JSON.parse(JSON.stringify(treeData));
-        if (!copyTreeData || filteredObjectTypes.length > 0) return;
+        if (!copyTreeData) return;
 
         setTree(hierarchy(copyTreeData, (d) => (d!.isExpanded ? null : d!.children)));
     }, [treeData]);
