@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import { useNavigate } from 'react-router-dom';
 import BaseVisualizationNode from '~/components/explore/visualization/BaseVisualizationNode';
 import { useGetOcpt } from '~/services/queries';
@@ -23,7 +24,19 @@ const OcptVisualizationNode = memo<NodeProps<TVisualizationNode>>((node) => {
         if (data) node.data.processedData = data.ocpt;
     }, [data]);
 
-    return <BaseVisualizationNode visualize={visualize} {...node} />;
+    return (
+        <BaseVisualizationNode
+            {...node}
+            title="OCPT Viewer"
+            iconName="network"
+            handleOptions={[
+                { position: Position.Left, type: 'target' as const },
+                { position: Position.Right, type: 'source' as const },
+            ]}
+            dropdownOptions={[{ label: 'Change Source', action: 'changeSourceFile' as const }]}
+            visualize={visualize}
+        />
+    );
 });
 
 export default OcptVisualizationNode;
