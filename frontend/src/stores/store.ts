@@ -122,47 +122,6 @@ export const useStoredFiles = create<FileStore>((set) => ({
     clearFiles: () => set((state) => ({ files: [] })),
 }));
 
-export const useFilteredObjectType = create<UseFilteredObjectType>()(
-    persist(
-        (set) => ({
-            filteredObjectTypes: new Map(),
-            setFilteredObjectTypes: (nodeId, newFilteredObjectTypes) =>
-                set((state) => ({
-                    filteredObjectTypes: new Map(state.filteredObjectTypes).set(nodeId, newFilteredObjectTypes),
-                })),
-        }),
-        { name: 'filtered-object-type-storage' }
-    )
-);
-
-// Create the store
-export const useColorScaleStore = create<ColorScaleState>()(
-    persist(
-        (set, get) => ({
-            colorScales: new Map(),
-            objectTypes: new Map(),
-
-            setColorScaleObjectTypes: (nodeId, types) => {
-                set((state) => ({
-                    objectTypes: new Map(state.objectTypes).set(nodeId, types),
-                }));
-                get().updateColorScale(nodeId);
-            },
-
-            updateColorScale: (nodeId) => {
-                const { objectTypes, colorScales } = get();
-                const types = objectTypes.get(nodeId) || [];
-                const newColorScale = {
-                    domain: types,
-                    range: schemeSet1.slice(),
-                };
-                set({ colorScales: new Map(colorScales).set(nodeId, newColorScale) });
-            },
-        }),
-        { name: 'color-scale-storage' }
-    )
-);
-
 export const useRenderedOcpt = create<RenderedOcptStore>((set) => ({
     renderedOcpt: null,
     setRenderedOcpt: (newRenderedOcpt) => set(() => ({ renderedOcpt: newRenderedOcpt })),
