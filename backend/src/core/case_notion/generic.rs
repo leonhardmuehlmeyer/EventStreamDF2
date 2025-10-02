@@ -278,3 +278,44 @@ fn build_case(log: &OCEL, events: &HashSet<&String>, objects: &HashSet<&String>)
         object_types: filtered_object_types,
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*; 
+    use std::path::PathBuf;
+    use tokio;
+    use tokio::fs as tokio_fs;
+
+    #[tokio::test]
+    async fn test_generic_case_notion() {
+        // 1. Build the path to your OCEL JSON
+        let ocel_path = PathBuf::from("../example_data/ocel/ocel_v2_123.json");
+
+        // 2. Read the file
+        let ocel_data = tokio_fs::read_to_string(&ocel_path)
+            .await
+            .expect("failed to read OCEL JSON file");
+
+        // 3. Deserialize into OCEL
+        let ocel: OCEL = serde_json::from_str(&ocel_data).expect("failed to parse OCEL JSON");
+
+        // 4. Define start types and relations
+        let start_types = vec![OCELType { name: "Truck".to_string(), attributes: vec![] }];
+        let o2o_relations= vec![];
+        let e2o_relations= vec![
+            (OCELType { name: "Drive to Terminal".to_string(), attributes: vec![] },
+             OCELType { name: "Truck".to_string(), attributes: vec![] }),
+            (OCELType { name: "Load Truck".to_string(), attributes: vec![] },
+             OCELType { name: "Truck".to_string(), attributes: vec![] }),
+        ];
+
+        // 5. Apply the generic notion function
+        let cases = generic_notion(&ocel, &start_types, &o2o_relations, &e2o_relations);
+
+        // 6. Print to console
+        println!("Extracted cases:{} \n First case: \n\n", cases.len());
+        //println!("{:#?}", cases[0]);
+    }
+}
+
