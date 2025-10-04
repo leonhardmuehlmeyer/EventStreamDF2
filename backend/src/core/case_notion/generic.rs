@@ -1,28 +1,45 @@
 use process_mining::OCEL;
-use process_mining::ocel::ocel_struct::OCELType;
-
-
+use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::collections::BTreeSet;
 
-fn generic_notion(
+struct GenericCaseNotion {
+    start_types: Vec<OCELType>,
+    o2o_relations: Vec<(OCELType, OCELType)>,
+    e2o_relations: Vec<(OCELType, OCELType)>
+}
+
+fn generic_case_notion_to_ocels(
+    generic_case_notion: &GenericCaseNotion,
+
+    // probably not sufficient: o2o cannot be encoded here
+    // event_details: &FxHashMap<String, (String, BTreeSet<String>)>,
+    // object_details: &FxHashMap<String, (String, Vec<String>)>,
+    // event_type_defs: &[OCELType],
+    // object_type_defs: &[OCELType],
+    // default_timestamp: &chrono::DateTime<chrono::FixedOffset>,
+
+    // for building the new OCELs efficiently - TODO: pass to build_case
+    event_lookup: &FxHashMap<String, OCELEvent>,
+    object_lookup: &FxHashMap<String, OCELObject>,
+
+    // maybe try to replace with log encoding above. might not be possible -> figure out what to do
     log: &OCEL,
-    start_types: &Vec<OCELType>,
-    o2o_relations: &Vec<(OCELType, OCELType)>,
-    e2o_relations: &Vec<(OCELType, OCELType)>
+
 ) -> Vec<OCEL>{
     let mut result = vec![];
 
     // used to make lookups faster
-    let start_type_names: FxHashSet<_> = start_types.iter().map(|t| &t.name).collect();
+    let start_type_names: FxHashSet<_> = generic_case_notion.start_types.iter().map(|t| &t.name).collect();
 
     let mut start_objects: Vec<_> = log.objects
         .iter()
         .filter(|obj| start_type_names.contains(&obj.object_type))
         .collect();
 
-    let o2o_map = build_o2o_map(log, o2o_relations);
-    let e2o_map = build_e2o_map(log, e2o_relations);
-    let o2e_map = build_o2e_map(log, e2o_relations);
+    let o2o_map = build_o2o_map(log, &generic_case_notion.o2o_relations);
+    let e2o_map = build_e2o_map(log, &generic_case_notion.e2o_relations);
+    let o2e_map = build_o2e_map(log, &generic_case_notion.e2o_relations);
 
 
     while !start_objects.is_empty() {
@@ -83,7 +100,7 @@ fn generic_notion(
         }
 
         // Create a new OCEL log from the collected events and objects
-        let case = build_case(log, &events, &objects);
+        let case = build_case(log, &events, &objects, event_lookup, object_lookup);
 
         // Append the new log to the result
         result.push(case);
@@ -233,39 +250,59 @@ pub fn build_o2e_map(
 }
 
 
-/// HELPER FUNCTION
-/// Build a sub-OCEL containing only the collected events/objects and their types.
-fn build_case(log: &OCEL, events: &FxHashSet<&String>, objects: &FxHashSet<&String>) -> OCEL {
-    // Precompute the referenced event types
+/// Build a sub-OCEL containing only the selected events and objects (and their corresponding types),
+/// using precomputed lookup maps for fast access.
+///
+/// # Arguments
+/// * `log` - Reference to the full [`OCEL`] log.
+/// * `events` - Set of event IDs to include in the sublog.
+/// * `objects` - Set of object IDs to include in the sublog.
+/// * `event_lookup` - Prebuilt lookup map from event ID → [`OCELEvent`].
+/// * `object_lookup` - Prebuilt lookup map from object ID → [`OCELObject`].
+///
+/// # Returns
+/// A new [`OCEL`] instance containing only the selected subset.
+fn build_case(
+    log: &OCEL,
+    events: &FxHashSet<&String>,
+    objects: &FxHashSet<&String>,
+    event_lookup: &FxHashMap<String, OCELEvent>,
+    object_lookup: &FxHashMap<String, OCELObject>,
+) -> OCEL {
+    // Track which event and object *types* are actually used
     let mut used_event_types: FxHashSet<&String> = FxHashSet::default();
-    let filtered_events: Vec<_> = log.events
+    let mut used_object_types: FxHashSet<&String> = FxHashSet::default();
+
+    // Collect filtered events efficiently via lookup
+    let filtered_events: Vec<OCELEvent> = events
         .iter()
-        .filter(|e| events.contains(&e.id))
+        .filter_map(|id| event_lookup.get(*id))
         .map(|e| {
             used_event_types.insert(&e.event_type);
             e.clone()
         })
         .collect();
 
-    // Precompute the referenced object types
-    let mut used_object_types: FxHashSet<&String> = FxHashSet::default();
-    let filtered_objects: Vec<_> = log.objects
+    // Collect filtered objects efficiently via lookup
+    let filtered_objects: Vec<OCELObject> = objects
         .iter()
-        .filter(|o| objects.contains(&o.id))
+        .filter_map(|id| object_lookup.get(*id))
         .map(|o| {
             used_object_types.insert(&o.object_type);
             o.clone()
         })
         .collect();
 
-    // Filter event types and object types only once, based on the precomputed sets
-    let filtered_event_types: Vec<_> = log.event_types
+    // Filter event/object types based on what was actually used
+    let filtered_event_types: Vec<OCELType> = log
+        .event_types
         .iter()
         .filter(|et| used_event_types.contains(&et.name))
         .cloned()
         .collect();
 
-    let filtered_object_types: Vec<_> = log.object_types
+    let filtered_object_types: Vec<OCELType> = log
+        .object_types
         .iter()
         .filter(|ot| used_object_types.contains(&ot.name))
         .cloned()
@@ -311,7 +348,30 @@ mod tests {
         ];
 
         // 5. Apply the generic notion function
-        let cases = generic_notion(&ocel, &start_types, &o2o_relations, &e2o_relations);
+        let generic_case_notion = GenericCaseNotion {
+            start_types,
+            o2o_relations,
+            e2o_relations,
+        };
+
+        let event_lookup: FxHashMap<String, OCELEvent> = ocel
+            .events
+            .iter()
+            .map(|e| (e.id.clone(), e.clone()))
+            .collect();
+
+        let object_lookup: FxHashMap<String, OCELObject> = ocel
+            .objects
+            .iter()
+            .map(|o| (o.id.clone(), o.clone()))
+            .collect();
+
+        let cases = generic_case_notion_to_ocels(
+            &generic_case_notion,
+            &event_lookup,
+            &object_lookup,
+            &ocel,
+        );
 
         // 6. Print to console
         println!("Extracted cases:{} \n First case: \n\n", cases.len());
