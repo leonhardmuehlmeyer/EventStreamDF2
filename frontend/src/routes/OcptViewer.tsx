@@ -29,14 +29,19 @@ const OcptViewer: React.FC = () => {
         : scaleOrdinal<string, string>({ domain: [], range: [] });
 
     useEffect(() => {
-        const filter = searchParams.get('filter');
-        if (nodeId && viewState) {
-            const newFilteredObjectTypes = filter ? filter.split(',') : objectTypes;
+        const filterFromUrl = searchParams.get('filter');
+        // Only sync from the URL if the parameter exists.
+        if (filterFromUrl !== null && nodeId && viewState) {
+            const newFilteredObjectTypes = filterFromUrl === '' ? [] : filterFromUrl.split(',');
+
+            // Update the store only if the URL state is different from the store state.
             if (JSON.stringify(viewState.filteredObjectTypes) !== JSON.stringify(newFilteredObjectTypes)) {
                 updateNodeData(nodeId, { viewState: { ...viewState, filteredObjectTypes: newFilteredObjectTypes } });
             }
         }
-    }, [searchParams, updateNodeData, objectTypes, nodeId, viewState]);
+        // We only want this effect to run when the component loads or the URL/node changes,
+        // not when the viewState is updated by the user in the sidebar.
+    }, [searchParams, nodeId]);
 
     useEffect(() => {
         if (nodeId) {
