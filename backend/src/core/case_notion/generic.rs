@@ -3,6 +3,9 @@ use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::BTreeSet;
 
+use log::LevelFilter;
+use env_logger::Builder;
+
 struct GenericCaseNotion {
     start_types: Vec<OCELType>,
     o2o_relations: Vec<(OCELType, OCELType)>,
@@ -27,6 +30,9 @@ fn generic_case_notion_to_ocels(
     log: &OCEL,
 
 ) -> Vec<OCEL>{
+
+    Builder::new().filter_level(LevelFilter::Debug).init();
+
     let mut result = vec![];
 
     // used to make lookups faster
@@ -40,6 +46,9 @@ fn generic_case_notion_to_ocels(
     let o2o_map = build_o2o_map(log, &generic_case_notion.o2o_relations);
     let e2o_map = build_e2o_map(log, &generic_case_notion.e2o_relations);
     let o2e_map = build_o2e_map(log, &generic_case_notion.e2o_relations);
+
+
+    print_relation_maps(&o2o_map, &e2o_map, &o2e_map);
 
 
     while !start_objects.is_empty() {
@@ -68,7 +77,16 @@ fn generic_case_notion_to_ocels(
                 }
             }
 
-            // Step 2: from objects → events (O2E)
+            for evn_id in &events_to_analyse {
+                if let Some(objs) = e2o_map.get(*evn_id) {
+                    for o in objs {
+                        if objects.insert(o) {
+                            new_objects.insert(o);
+                        }
+                    }
+                }
+            }
+
             for obj_id in &objects_to_analyse {
                 if let Some(evns) = o2e_map.get(*obj_id) {
                     for e in evns {
@@ -79,16 +97,33 @@ fn generic_case_notion_to_ocels(
                 }
             }
 
-            // Step 3: from events → objects (E2O)
-            for evn_id in &events_to_analyse {
-                if let Some(objs) = e2o_map.get(*evn_id) {
-                    for o in objs {
-                        if objects.insert(o) {
-                            new_objects.insert(o);
-                        }
-                    }
-                }
-            }
+
+
+
+
+
+
+            // // Step 2: from objects → events (O2E)
+            // for obj_id in &objects_to_analyse {
+            //     if let Some(evns) = o2e_map.get(*obj_id) {
+            //         for e in evns {
+            //             if events.insert(e) {
+            //                 new_events.insert(e);
+            //             }
+            //         }
+            //     }
+            // }
+
+            // // Step 3: from events → objects (E2O)
+            // for evn_id in &events_to_analyse {
+            //     if let Some(objs) = e2o_map.get(*evn_id) {
+            //         for o in objs {
+            //             if objects.insert(o) {
+            //                 new_objects.insert(o);
+            //             }
+            //         }
+            //     }
+            // }
 
             // Update frontier sets
             if new_objects.is_empty() && new_events.is_empty() {
@@ -167,10 +202,10 @@ pub fn build_e2o_map(
     // Precompute allowed pairs: event_type -> allowed object_types
     let allowed: FxHashMap<&str, Vec<&str>> = {
         let mut map: FxHashMap<&str, Vec<&str>> = FxHashMap::default();
-        for (evt, obj) in e2o_relations {
-            map.entry(&evt.name)
+        for (a, b) in e2o_relations {
+            map.entry(&a.name)
                 .or_default()
-                .push(&obj.name);
+                .push(&b.name);
         }
         map
     };
@@ -214,10 +249,10 @@ pub fn build_o2e_map(
     // Precompute allowed pairs: object_type -> allowed event_types
     let allowed: FxHashMap<&str, Vec<&str>> = {
         let mut map: FxHashMap<&str, Vec<&str>> = FxHashMap::default();
-        for (evt, obj) in e2o_relations {
-            map.entry(&obj.name)
+        for (a, b) in e2o_relations {
+            map.entry(&a.name)
                 .or_default()
-                .push(&evt.name);
+                .push(&b.name);
         }
         map
     };
@@ -338,13 +373,27 @@ mod tests {
         let ocel: OCEL = serde_json::from_str(&ocel_data).expect("failed to parse OCEL JSON");
 
         // 4. Define start types and relations
-        let start_types = vec![OCELType { name: "Truck".to_string(), attributes: vec![] }];
+        let start_types = vec![OCELType { name: "worker".to_string(), attributes: vec![] }];
         let o2o_relations= vec![];
+        // let e2o_relations= vec![
+        //     (OCELType { name: "Worker arrival".to_string(), attributes: vec![] },
+        //      OCELType { name: "worker".to_string(), attributes: vec![] }),
+        //     (OCELType { name: "Worker departure".to_string(), attributes: vec![] },
+        //      OCELType { name: "worker".to_string(), attributes: vec![] }),
+        //     (OCELType { name: "Load materials".to_string(), attributes: vec![] },
+        //      OCELType { name: "worker".to_string(), attributes: vec![] }),
+        //     (OCELType { name: "Unload materials".to_string(), attributes: vec![] },
+        //      OCELType { name: "worker".to_string(), attributes: vec![] }),
+        // ];
         let e2o_relations= vec![
-            (OCELType { name: "Drive to Terminal".to_string(), attributes: vec![] },
-             OCELType { name: "Truck".to_string(), attributes: vec![] }),
-            (OCELType { name: "Load Truck".to_string(), attributes: vec![] },
-             OCELType { name: "Truck".to_string(), attributes: vec![] }),
+            (OCELType { name: "worker".to_string(), attributes: vec![] },
+             OCELType { name: "Worker arrival".to_string(), attributes: vec![] }),
+            (OCELType { name: "worker".to_string(), attributes: vec![] },
+             OCELType { name: "Worker departure".to_string(), attributes: vec![] }),
+            (OCELType { name: "worker".to_string(), attributes: vec![] },
+             OCELType { name: "Load materials".to_string(), attributes: vec![] }),
+            (OCELType { name: "worker".to_string(), attributes: vec![] },
+             OCELType { name: "Unload materials".to_string(), attributes: vec![] }),
         ];
 
         // 5. Apply the generic notion function
@@ -373,9 +422,48 @@ mod tests {
             &ocel,
         );
 
+        for case in cases.iter() {
+            // write ocel as serde json to file in folder generic_cn_results/{datetime}/case_{i}.json
+            let now = chrono::Local::now();
+            let folder_name = format!("generic_cn_results/{}", now.format("%Y%m%d_%H%M%S"));
+            tokio_fs::create_dir_all(&folder_name).await.expect("failed to create output directory");
+            let case_index = cases.iter().position(|c| c == case).unwrap();
+            let file_path = format!("{}/case_{}.json", folder_name, case_index);
+            let case_json = serde_json::to_string_pretty(case).expect("failed to serialize case to JSON");
+            tokio_fs::write(&file_path, case_json).await.expect("failed to write case JSON to file");
+        }
+
         // 6. Print to console
         println!("Extracted cases:{} \n First case: \n\n", cases.len());
         //println!("{:#?}", cases[0]);
     }
 }
 
+
+
+use log::debug;
+
+fn print_relation_maps(
+    o2o_map: &FxHashMap<String, Vec<String>>,
+    e2o_map: &FxHashMap<String, Vec<String>>,
+    o2e_map: &FxHashMap<String, Vec<String>>,
+) {
+    debug!("================== Relation Maps ==================");
+    
+    debug!("O2O Map:");
+    for (k, v) in o2o_map {
+        debug!("  {} -> {:?}", k, v);
+    }
+
+    debug!("E2O Map:");
+    for (k, v) in e2o_map {
+        debug!("  {} -> {:?}", k, v);
+    }
+
+    debug!("O2E Map:");
+    for (k, v) in o2e_map {
+        debug!("  {} -> {:?}", k, v);
+    }
+
+    debug!("===================================================");
+}

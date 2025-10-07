@@ -10,6 +10,7 @@ axum-extra = { version = "0.10.1", features = ["multipart"] }
 bytes = "1.10.1"
 chrono = "0.4.41"
 cors = "0.1.0"
+env_logger = "0.11.8"
 futures-util = "0.3.31"
 itertools = "0.14.0"
 log = "0.4.27"
