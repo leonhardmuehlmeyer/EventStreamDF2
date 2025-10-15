@@ -1,14 +1,19 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
+import { Position } from '@xyflow/react';
 import BaseMinerNode from '~/components/explore/miner/BaseMinerNode';
 import { useGetOcpt } from '~/services/queries';
 import type { BaseExploreNodeAsset, TMinerNode } from '~/types/explore';
-import { Position } from '@xyflow/react';
 
 const OcptMinerNode = memo<NodeProps<TMinerNode>>((node) => {
     const [fileId, setFileId] = useState<null | string>(null);
     const [fileName, setFileName] = useState<string>('');
-    const { isLoading, data } = useGetOcpt(fileId);
+
+    const hasMinedAsset = useMemo(() => {
+        return node.data.assets.some((asset) => asset.io === 'output' && asset.origin === 'mined');
+    }, [node.data.assets]);
+
+    const { isLoading, data } = useGetOcpt(fileId, !hasMinedAsset);
 
     useMemo(() => {
         const inputAsset = node.data.assets.find((asset) => asset.io === 'input');
@@ -20,7 +25,7 @@ const OcptMinerNode = memo<NodeProps<TMinerNode>>((node) => {
 
     useEffect(() => {
         const outputAssets = node.data.assets.filter((asset) => asset.io === 'output');
-        if (!data || !fileName || outputAssets.length > 1) return;
+        if (!data || !fileName || outputAssets.length > 0) return;
 
         const asset: BaseExploreNodeAsset = {
             id: data.file_id,
