@@ -27,3 +27,6 @@ dist-ssr
 .env
 *storybook.log
 storybook-static
+
+# Custom Ignore
+public/example_data

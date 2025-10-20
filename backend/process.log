@@ -1,8 +1,0 @@
-16:55:50 [INFO] Sequence cut found: {"place order"} (->) {"reorder item", "item out of stock", "send package", "package delivered", "pay order", "confirm order", "pick item", "create package"}
-16:55:50 [INFO] Parallel cut found: {"item out of stock", "reorder item", "send package", "create package", "package delivered", "pick item"} (||) {"pay order", "confirm order"}
-16:55:50 [INFO] Sequence cut found: {"item out of stock"} (->) {"package delivered", "reorder item", "send package", "pick item", "create package"}
-16:55:50 [INFO] Sequence cut found: {"reorder item"} (->) {"create package", "send package", "pick item", "package delivered"}
-16:55:50 [INFO] Sequence cut found: {"pick item", "create package"} (->) {"send package", "package delivered"}
-16:55:50 [INFO] Parallel cut found: {"pick item"} (||) {"create package"}
-16:55:50 [INFO] Sequence cut found: {"send package"} (->) {"package delivered"}
-16:55:50 [INFO] Sequence cut found: {"confirm order"} (->) {"pay order"}
