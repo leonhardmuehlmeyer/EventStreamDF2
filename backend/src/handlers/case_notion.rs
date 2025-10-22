@@ -178,6 +178,8 @@ pub async fn post_generic_case_notion(
 
     let case_notion = generic_case_notion(&ocel, &payload);
 
+    log::debug!("case_notion: {:?}", case_notion);
+
     let context = CaseNotionContext::new(&ocel);
     let measures = calculate_measures(
         &case_notion,
@@ -190,6 +192,8 @@ pub async fn post_generic_case_notion(
     let total_score = average_score(&measures);
     let f1_score = f1_from_measures(&measures);
 
+    log::debug!("measures: {:?}", measures);
+
     let evaluation = CaseNotionEvaluation {
         object_type: None,
         measures: measures.clone(),
@@ -198,7 +202,7 @@ pub async fn post_generic_case_notion(
         case_notion,
     };
     
-    Ok(Json(measures))
+    Ok(axum::Json(measures))
 
 }
 

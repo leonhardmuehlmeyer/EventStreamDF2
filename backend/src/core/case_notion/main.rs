@@ -30,7 +30,7 @@ use std::{
     time::Instant,
 };
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Debug)]
 pub struct CaseMeasure {
     pub name: String,
     pub value: f64,
