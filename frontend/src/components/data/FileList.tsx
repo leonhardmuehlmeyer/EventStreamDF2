@@ -27,10 +27,10 @@ const FileList: React.FC = () => {
 
     const loadExampleFiles = async () => {
         try {
-            const ocelResponse = await fetch('/example_data/ocel/ocel_v2_123.json');
+            const ocelResponse = await fetch('/example_data/ocel/order-management.json');
             if (ocelResponse.ok) {
                 const ocelBlob = await ocelResponse.blob();
-                const ocelFile = new File([ocelBlob], 'ocel_v2_123.json', { type: 'application/json' });
+                const ocelFile = new File([ocelBlob], 'order-management.json', { type: 'application/json' });
                 handleFileUpload(ocelFile, 'ocelFile');
             }
 
