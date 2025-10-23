@@ -3,6 +3,7 @@ import { type Connection, type Edge, type IsValidConnection, type NodeChange, us
 import { isEqual } from 'lodash-es';
 import { useVisualization } from '~/hooks/useVisualization';
 import { useExploreFlowStore } from '~/stores/exploreStore';
+import { useFileDialogStore } from '~/stores/store';
 import { isFileNode, isVisualizationNode } from '~/lib/explore/exploreNodes.utils';
 import { isTwoFileNodes, isTwoVisualizationNodes } from '~/lib/explore/guardNodeConnections';
 import { Logger } from '~/lib/logger';
@@ -25,6 +26,7 @@ export const useExploreEventHandlers = () => {
         getNode,
     } = useExploreFlowStore();
 
+    const { openDialog } = useFileDialogStore();
     const { screenToFlowPosition } = useReactFlow();
     const { createVisualizationHandler } = useVisualization();
     const directedNeighborMap = useRef(new Map<NodeId, NodeId[]>());
@@ -222,6 +224,12 @@ export const useExploreEventHandlers = () => {
                     const currentNode = getNode(newNode.id);
                     return (currentNode?.data as VisualizationExploreNodeData) || newNode.data;
                 });
+            }
+
+            // This statement opens the 'File Selection Dialog' automatically
+            // if the node received is a FileNode.
+            else if (isFileNode(newNode)) {
+                openDialog(newNode.id);
             }
 
             addNode(newNode);
