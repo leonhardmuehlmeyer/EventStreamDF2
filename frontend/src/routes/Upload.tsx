@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '~/components/ui/button';
 import { Separator } from '~/components/ui/separator';
 import BreadcrumbNav from '~/components/BreadcrumbNav';
-import FileList from '~/components/data/FileList';
 import Dropzone from '~/components/Dropzone';
+import FileList from '~/components/explore/file/ui/FileList';
 
 const Upload: React.FC = () => {
     const navigate = useNavigate();
