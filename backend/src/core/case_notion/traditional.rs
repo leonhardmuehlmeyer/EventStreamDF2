@@ -1,9 +1,8 @@
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
 use crate::core::case_notion::log_graphs::LogGraphTypeLevel;
-use crate::core::case_notion::main::{
-    average_score, calculate_measures, f1_from_measures, is_better_evaluation,
-    CaseNotionContext, CaseNotionEvaluation,
-};
+use crate::core::case_notion::main::{CaseNotionContext, CaseNotionEvaluation};
+use crate::core::case_notion::measures::{average_score, calculate_measures, f1_from_measures};
+use crate::core::case_notion::utils::is_better_evaluation;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value;
 use std::collections::HashSet;
