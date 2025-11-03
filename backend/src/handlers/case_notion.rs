@@ -2,43 +2,45 @@ use crate::core::case_notion::advanced::{
     advanced_case_notion_type_level, best_advanced_case_notion,
 };
 use crate::core::case_notion::connected_component::connected_components_notion;
+use crate::core::case_notion::generic::{build_case, generic_case_notion};
 use crate::core::case_notion::log_graphs::build_log_graph_type_level;
-use crate::core::case_notion::main::{
-    CaseMeasure, CaseNotionCase, CaseNotionContext, CaseNotionEvaluation,
-};
+use crate::core::case_notion::main::{CaseMeasure, CaseNotionContext, CaseNotionEvaluation};
 use crate::core::case_notion::measures::{average_score, calculate_measures, f1_from_measures};
-use crate::core::case_notion::utils::{case_notion_to_cases, case_notion_to_ocels};
 use crate::core::case_notion::traditional::{
     traditional_case_notion, traditional_case_notion_type_level,
 };
-use crate::traits::import_export::ImportableFromPath;
-use crate::core::case_notion::generic::generic_case_notion;
 use crate::models::case_notion::GenericCaseNotion;
-use crate::models::ocel::OCEL;
+use crate::models::ocel::{OCEL, OCELEvent, OCELObject};
+use crate::traits::import_export::ImportableFromPath;
 use axum::{
     Json,
     extract::{Path, Query},
     http::StatusCode,
     response::IntoResponse,
 };
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::fs;
-use rustc_hash::FxHashSet;
+use uuid::Uuid;
 
+type RawCaseNotionEntry = (Vec<String>, Vec<String>, Vec<(String, String)>);
 
 #[derive(Deserialize)]
 pub(crate) struct CaseNotionQuery {
     object_type: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct CaseNotionResponse {
     case_notion: &'static str,
-    file_id: String,
+    origin_file_id_ocel: String,
+    case_notion_file_id: String,
     source_ocel_file: String,
     object_type: Option<String>,
-    cases: Vec<CaseNotionCase>,
+    cases: Vec<RawCaseNotionEntry>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    case_ocels: Option<Vec<OCEL>>,
     measures: Vec<CaseMeasure>,
     total_score: f64,
     f1_score: Option<f64>,
@@ -51,6 +53,143 @@ struct CaseNotionResponse {
 }
 
 #[derive(Serialize)]
+struct CaseOcelResponse {
+    origin_file_id_ocel: String,
+    case_notion_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    object_type: Option<String>,
+    case_notion_file_id: String,
+    case_ocels: Vec<OCEL>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PersistedCaseNotion {
+    case_notion: Vec<RawCaseNotionEntry>,
+    origin_file_id_ocel: String,
+    case_notion_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    object_type: Option<String>,
+    case_notion_file_id: String,
+}
+
+struct LoadedCaseNotion {
+    case_notion: Vec<RawCaseNotionEntry>,
+    origin_file_id_ocel: String,
+    case_kind: CaseKind,
+    object_type: Option<String>,
+    case_notion_file_id: String,
+    ocel: OCEL,
+}
+
+// Persist the computed case notion as JSON on disk and return the storage identifier.
+async fn persist_case_notion(
+    cases: &[RawCaseNotionEntry],
+    origin_file_id_ocel: &str,
+    case_kind: CaseKind,
+    object_type: Option<&str>,
+) -> Result<String, (StatusCode, String)> {
+    let case_notion_file_id = Uuid::new_v4().to_string();
+    let payload = PersistedCaseNotion {
+        case_notion: cases.to_vec(),
+        origin_file_id_ocel: origin_file_id_ocel.to_string(),
+        case_notion_type: case_kind.label().to_string(),
+        object_type: object_type.map(|value| value.to_string()),
+        case_notion_file_id: case_notion_file_id.clone(),
+    };
+
+    let serialized = match serde_json::to_vec(&payload) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            eprintln!("serialize case notion failed: {err}");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize case notion".to_string(),
+            ));
+        }
+    };
+
+    let path = format!("./temp/case_notion_{}.json", case_notion_file_id);
+    if let Err(err) = fs::write(&path, serialized).await {
+        eprintln!("write case notion file failed: {err}");
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to store case notion".to_string(),
+        ));
+    }
+
+    Ok(case_notion_file_id)
+}
+
+async fn load_persisted_case_notion(
+    case_notion_file_id: &str,
+) -> Result<LoadedCaseNotion, (StatusCode, String)> {
+    let path = format!("./temp/case_notion_{}.json", case_notion_file_id);
+    let bytes = match fs::read(&path).await {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("read case notion file failed: {err}");
+            return Err(if err.kind() == std::io::ErrorKind::NotFound {
+                (
+                    StatusCode::NOT_FOUND,
+                    format!(
+                        "No stored case notion found for fileId: {}",
+                        case_notion_file_id
+                    ),
+                )
+            } else {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to read stored case notion".to_string(),
+                )
+            });
+        }
+    };
+
+    let persisted: PersistedCaseNotion = match serde_json::from_slice(&bytes) {
+        Ok(data) => data,
+        Err(err) => {
+            eprintln!("parse case notion file failed: {err}");
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Stored case notion is not valid JSON".to_string(),
+            ));
+        }
+    };
+
+    let PersistedCaseNotion {
+        case_notion,
+        origin_file_id_ocel,
+        case_notion_type,
+        object_type,
+        case_notion_file_id,
+    } = persisted;
+
+    let case_kind = match CaseKind::from_label(&case_notion_type) {
+        Some(kind) => kind,
+        None => {
+            eprintln!(
+                "unknown case notion type in stored file: {}",
+                case_notion_type
+            );
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Stored case notion has unknown type".to_string(),
+            ));
+        }
+    };
+
+    let ocel = OCEL::import_from_path(&origin_file_id_ocel).await?;
+
+    Ok(LoadedCaseNotion {
+        case_notion,
+        origin_file_id_ocel,
+        case_kind,
+        object_type,
+        case_notion_file_id,
+        ocel,
+    })
+}
+#[derive(Serialize)]
 struct TraditionalTypeLevelResponse {
     case_notion: &'static str,
     object_type: String,
@@ -58,6 +197,8 @@ struct TraditionalTypeLevelResponse {
     total_score: f64,
     f1_score: Option<f64>,
     graph: Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    case_notion_file_id: Option<String>,
 }
 
 enum ObjectTypeSelection {
@@ -79,15 +220,14 @@ impl ObjectTypeSelection {
             None => ObjectTypeSelection::Default,
         }
     }
-
 }
-
 
 #[derive(Clone, Copy)]
 enum CaseKind {
     Advanced,
     ConnectedComponents,
     Traditional,
+    Generic,
 }
 
 impl CaseKind {
@@ -96,6 +236,17 @@ impl CaseKind {
             CaseKind::Advanced => "Advanced Case Notion",
             CaseKind::ConnectedComponents => "Connected Components Case Notion",
             CaseKind::Traditional => "Traditional Case Notion",
+            CaseKind::Generic => "Generic Case Notion",
+        }
+    }
+
+    fn from_label(label: &str) -> Option<Self> {
+        match label {
+            "Advanced Case Notion" => Some(CaseKind::Advanced),
+            "Connected Components Case Notion" => Some(CaseKind::ConnectedComponents),
+            "Traditional Case Notion" => Some(CaseKind::Traditional),
+            "Generic Case Notion" => Some(CaseKind::Generic),
+            _ => None,
         }
     }
 }
@@ -123,6 +274,9 @@ fn not_found_response(kind: CaseKind, selection: &ObjectTypeSelection) -> (Statu
         CaseKind::ConnectedComponents => unreachable!(
             "not_found_response should not be called for connected components case notion"
         ),
+        CaseKind::Generic => {
+            unreachable!("not_found_response should not be called for generic case notion")
+        }
     };
 
     (StatusCode::NOT_FOUND, message)
@@ -192,19 +346,32 @@ pub async fn get_advanced_case_notion(
         context.divergence_map(),
     );
 
-    let cases = case_notion_to_cases(&evaluation.case_notion);
+    let cases: Vec<RawCaseNotionEntry> = evaluation.case_notion.iter().cloned().collect();
+    let case_notion_file_id = match persist_case_notion(
+        &cases,
+        &file_id,
+        CaseKind::Advanced,
+        evaluation.object_type.as_deref(),
+    )
+    .await
+    {
+        Ok(file_id) => file_id,
+        Err(response) => return response.into_response(),
+    };
 
     let payload = CaseNotionResponse {
         case_notion: CaseKind::Advanced.label(),
-        file_id,
+        origin_file_id_ocel: file_id,
+        case_notion_file_id,
         source_ocel_file: path,
-        export_id: None,
         object_type: evaluation.object_type.clone(),
         cases,
+        case_ocels: None,
         measures: evaluation.measures.clone(),
         total_score: evaluation.total_score,
         f1_score: evaluation.f1_score,
         type_level_graph: Some(type_level_graph),
+        export_id: None,
         saved_as: None,
     };
 
@@ -274,13 +441,35 @@ pub async fn get_connected_components_case_notion(
 
     let type_level_graph = build_log_graph_type_level(&ocel);
 
-    let mut payload = build_response(
+    let cases: Vec<RawCaseNotionEntry> = evaluation.case_notion.iter().cloned().collect();
+    let case_notion_file_id = match persist_case_notion(
+        &cases,
+        &file_id,
         CaseKind::ConnectedComponents,
-        file_id,
-        path,
-        evaluation,
-    );
-    payload.type_level_graph = Some(type_level_graph);
+        evaluation.object_type.as_deref(),
+    )
+    .await
+    {
+        Ok(file_id) => file_id,
+        Err(response) => return response.into_response(),
+    };
+
+    let payload = CaseNotionResponse {
+        case_notion: CaseKind::ConnectedComponents.label(),
+        origin_file_id_ocel: file_id,
+        case_notion_file_id,
+        source_ocel_file: path,
+        object_type: evaluation.object_type.clone(),
+        cases,
+        case_ocels: None,
+        measures: evaluation.measures.clone(),
+        total_score: evaluation.total_score,
+        f1_score: evaluation.f1_score,
+        type_level_graph: Some(type_level_graph),
+        export_id: None,
+        saved_as: None,
+    };
+
     (StatusCode::OK, Json(payload)).into_response()
 }
 
@@ -325,10 +514,9 @@ pub async fn get_traditional_case_notion(
     let context = CaseNotionContext::new(&ocel);
 
     let evaluation = match &selection {
-        ObjectTypeSelection::Specific(requested) => traditional_case_notion(
-            &context,
-            Some(requested.as_str()),
-        ),
+        ObjectTypeSelection::Specific(requested) => {
+            traditional_case_notion(&context, Some(requested.as_str()))
+        }
         ObjectTypeSelection::Default => traditional_case_notion(&context, None),
     }
     .ok_or_else(|| not_found_response(CaseKind::Traditional, &selection));
@@ -347,8 +535,20 @@ pub async fn get_traditional_case_notion(
     };
 
     let graph = build_log_graph_type_level(&ocel);
-    let partitioned_graph =
-        traditional_case_notion_type_level(&graph, object_type.as_str());
+    let partitioned_graph = traditional_case_notion_type_level(&graph, object_type.as_str());
+
+    let cases: Vec<RawCaseNotionEntry> = evaluation.case_notion.iter().cloned().collect();
+    let case_notion_file_id = match persist_case_notion(
+        &cases,
+        &file_id,
+        CaseKind::Traditional,
+        Some(object_type.as_str()),
+    )
+    .await
+    {
+        Ok(file_id) => file_id,
+        Err(response) => return response.into_response(),
+    };
 
     let response = TraditionalTypeLevelResponse {
         case_notion: CaseKind::Traditional.label(),
@@ -357,16 +557,16 @@ pub async fn get_traditional_case_notion(
         total_score: evaluation.total_score,
         f1_score: evaluation.f1_score,
         graph: partitioned_graph,
+        case_notion_file_id: Some(case_notion_file_id),
     };
 
     (StatusCode::OK, Json(response)).into_response()
 }
 
-
 pub async fn post_generic_case_notion(
     Path(file_id): Path<String>,
     Json(payload): Json<GenericCaseNotion>,
-) -> Result<impl IntoResponse, (StatusCode, String)> { 
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     log::debug!("Received GenericCaseNotion for file_id: {}", file_id);
     log::debug!("Payload: {:?}", payload);
     let ocel = OCEL::import_from_path(&file_id).await?;
@@ -396,48 +596,92 @@ pub async fn post_generic_case_notion(
         f1_score,
         case_notion,
     };
-    
+
     Ok(axum::Json(measures))
-
 }
 
+pub async fn get_case_ocel(Path(case_notion_file_id): Path<String>) -> impl IntoResponse {
+    let loaded = match load_persisted_case_notion(&case_notion_file_id).await {
+        Ok(data) => data,
+        Err(response) => return response.into_response(),
+    };
 
-fn build_response(
-    kind: CaseKind,
-    file_id: String,
-    source_ocel_file: String,
-    evaluation: CaseNotionEvaluation,
-) -> CaseNotionResponse {
-    let cases = case_notion_to_cases(&evaluation.case_notion);
-
-    CaseNotionResponse {
-        case_notion: kind.label(),
-        file_id,
-        source_ocel_file,
-        export_id: None,
-        object_type: evaluation.object_type.clone(),
-        cases,
-        measures: evaluation.measures.clone(),
-        total_score: evaluation.total_score,
-        f1_score: evaluation.f1_score,
-        type_level_graph: None,
-        saved_as: None,
-    }
-}
-
-pub fn get_case_ocel(
-    case_notion: &FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)>,
-    ocel: &OCEL,
-) -> Vec<OCEL> {
-    let context = CaseNotionContext::new(ocel);
-    case_notion_to_ocels(
+    let LoadedCaseNotion {
         case_notion,
-        context.cleaned_event_identifiers(),
-        context.object_identifiers(),
-        context.event_type_defs(),
-        context.object_type_defs(),
-        context.default_timestamp(),
-        context.event_lookup(),
-        context.object_lookup(),
-    )
+        origin_file_id_ocel,
+        case_kind,
+        object_type: persisted_object_type,
+        case_notion_file_id,
+        ocel,
+    } = loaded;
+
+    let event_lookup: FxHashMap<String, OCELEvent> = ocel
+        .events
+        .iter()
+        .map(|event| (event.id.clone(), event.clone()))
+        .collect();
+    let object_lookup: FxHashMap<String, OCELObject> = ocel
+        .objects
+        .iter()
+        .map(|object| (object.id.clone(), object.clone()))
+        .collect();
+
+    let event_id_refs: FxHashMap<&str, &String> = ocel
+        .events
+        .iter()
+        .map(|event| (event.id.as_str(), &event.id))
+        .collect();
+    let object_id_refs: FxHashMap<&str, &String> = ocel
+        .objects
+        .iter()
+        .map(|object| (object.id.as_str(), &object.id))
+        .collect();
+
+    let mut case_ocels = Vec::with_capacity(case_notion.len());
+
+    for (event_ids, object_ids, _) in &case_notion {
+        let mut event_refs: FxHashSet<&String> = FxHashSet::default();
+        for event_id in event_ids {
+            if let Some(id_ref) = event_id_refs.get(event_id.as_str()) {
+                event_refs.insert(*id_ref);
+            }
+        }
+
+        let mut object_refs: FxHashSet<&String> = FxHashSet::default();
+        for object_id in object_ids {
+            if let Some(id_ref) = object_id_refs.get(object_id.as_str()) {
+                object_refs.insert(*id_ref);
+            }
+        }
+
+        let case_ocel = build_case(
+            &ocel,
+            &event_refs,
+            &object_refs,
+            &event_lookup,
+            &object_lookup,
+        );
+        case_ocels.push(case_ocel);
+    }
+    let object_type = match case_kind {
+        CaseKind::Advanced | CaseKind::Traditional => persisted_object_type,
+        CaseKind::ConnectedComponents | CaseKind::Generic => None,
+    };
+
+    let case_notion_type_label = match (&case_kind, object_type.as_ref()) {
+        (CaseKind::Advanced, Some(obj)) | (CaseKind::Traditional, Some(obj)) => {
+            format!("{} ({})", case_kind.label(), obj)
+        }
+        _ => case_kind.label().to_string(),
+    };
+
+    let payload = CaseOcelResponse {
+        origin_file_id_ocel,
+        case_notion_type: case_notion_type_label,
+        object_type,
+        case_notion_file_id,
+        case_ocels,
+    };
+
+    (StatusCode::OK, Json(payload)).into_response()
 }
