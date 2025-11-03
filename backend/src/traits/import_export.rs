@@ -3,7 +3,6 @@ use axum::http::StatusCode;
 use serde::de::DeserializeOwned;
 use std::io;
 
-
 /// A trait that defines asynchronous import functionality for types that can be
 /// deserialized from JSON files stored on disk. It provides:
 ///

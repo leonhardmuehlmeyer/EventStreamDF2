@@ -3,10 +3,10 @@ use crate::core::event_object_frequencies::{
 };
 
 use crate::models::ocel::OCEL;
+use crate::traits::import_export::ImportableFromPath;
 use axum::{
     extract::Json as AxumJson, extract::Path as AxumPath, http::StatusCode, response::IntoResponse,
 };
-use crate::traits::import_export::ImportableFromPath;
 
 /// GET /v1/event_object_frequencies/:file_id
 /// -> loads ./temp/ocpt_{file_id}.json and ./temp/ocel_{file_id}.json
@@ -34,8 +34,8 @@ pub async fn post_ocel_filter(
         Ok(json_str) => filter_ocel_histograms(&ocel, &json_str),
         Err(e) => {
             return Err((
-            StatusCode::BAD_REQUEST,
-            format!("Failed to serialize selection JSON: {}", e),
+                StatusCode::BAD_REQUEST,
+                format!("Failed to serialize selection JSON: {}", e),
             ));
         }
     };

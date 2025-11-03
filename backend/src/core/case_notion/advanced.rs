@@ -309,7 +309,8 @@ pub fn advanced_case_notion_type_level(
     for object_type in object_types.into_iter() {
         if non_diverging_objects.contains(&object_type) {
             selected_object_types.push(object_type);
-        } else if diverging_objects.contains(&object_type) || visited_objects.contains(&object_type) {
+        } else if diverging_objects.contains(&object_type) || visited_objects.contains(&object_type)
+        {
             deselected_object_types.push(object_type);
         } else {
             deselected_object_types.push(object_type);

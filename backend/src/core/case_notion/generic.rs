@@ -1,21 +1,24 @@
+use crate::models::case_notion::GenericCaseNotion;
+use log::LevelFilter;
 use process_mining::OCEL;
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
-use crate::models::case_notion::GenericCaseNotion;
-use log::LevelFilter;
-
 
 pub fn generic_case_notion(
     log: &OCEL,
     generic_case_notion: &GenericCaseNotion,
-) -> FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)>{
-
+) -> FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)> {
     let mut result = FxHashSet::default();
 
     // used to make lookups faster
-    let start_type_names: FxHashSet<_> = generic_case_notion.start_types.iter().map(|t| &t.name).collect();
+    let start_type_names: FxHashSet<_> = generic_case_notion
+        .start_types
+        .iter()
+        .map(|t| &t.name)
+        .collect();
 
-    let mut start_objects: FxHashSet<&String> = log.objects
+    let mut start_objects: FxHashSet<&String> = log
+        .objects
         .iter()
         .filter(|obj| start_type_names.contains(&obj.object_type))
         .map(|o| &o.id)
@@ -25,9 +28,7 @@ pub fn generic_case_notion(
     let e2o_map = build_e2o_map(log, &generic_case_notion.e2o_relations);
     let o2e_map = build_o2e_map(log, &generic_case_notion.e2o_relations);
 
-
     print_relation_maps(&o2o_map, &e2o_map, &o2e_map);
-
 
     while let Some(&start_object) = start_objects.iter().next() {
         start_objects.remove(start_object);
@@ -43,7 +44,7 @@ pub fn generic_case_notion(
 
         loop {
             let mut new_objects: FxHashSet<&String> = FxHashSet::default();
-            let mut new_events: FxHashSet<&String>  = FxHashSet::default();
+            let mut new_events: FxHashSet<&String> = FxHashSet::default();
 
             // Step 1: from objects → other objects (O2O)
             for obj_id in &objects_to_analyse {
@@ -51,7 +52,7 @@ pub fn generic_case_notion(
                     for o in neigh {
                         if objects.insert(o) {
                             new_objects.insert(o);
-                            
+
                             start_objects.remove(o); // ensure no new case will be created from this object
                         }
                     }
@@ -89,18 +90,24 @@ pub fn generic_case_notion(
         }
 
         // Create a case as tuple of (events, objects, arcs)
-        let arcs: Vec<(String, String)> = events.iter().flat_map(|&event_id| {
-            e2o_map
-                .get(event_id)
-                .into_iter()
-                .flatten()
-                .filter(|object_id| objects.contains(object_id))
-                .map(|object_id| (event_id.clone(), object_id.clone()))
-        }).collect();
+        let arcs: Vec<(String, String)> = events
+            .iter()
+            .flat_map(|&event_id| {
+                e2o_map
+                    .get(event_id)
+                    .into_iter()
+                    .flatten()
+                    .filter(|object_id| objects.contains(object_id))
+                    .map(|object_id| (event_id.clone(), object_id.clone()))
+            })
+            .collect();
 
         let case = (
             events.iter().map(|s| (*s).clone()).collect::<Vec<String>>(),
-            objects.iter().map(|s| (*s).clone()).collect::<Vec<String>>(),
+            objects
+                .iter()
+                .map(|s| (*s).clone())
+                .collect::<Vec<String>>(),
             arcs,
         );
         // Append the new log to the result
@@ -114,15 +121,18 @@ pub fn generic_case_notion_to_ocels(
     event_lookup: &FxHashMap<String, OCELEvent>,
     object_lookup: &FxHashMap<String, OCELObject>,
     log: &OCEL,
-
-) -> Vec<OCEL>{
-
+) -> Vec<OCEL> {
     let mut result = vec![];
 
     // used to make lookups faster
-    let start_type_names: FxHashSet<_> = generic_case_notion.start_types.iter().map(|t| &t.name).collect();
+    let start_type_names: FxHashSet<_> = generic_case_notion
+        .start_types
+        .iter()
+        .map(|t| &t.name)
+        .collect();
 
-    let mut start_objects: FxHashSet<&String> = log.objects
+    let mut start_objects: FxHashSet<&String> = log
+        .objects
         .iter()
         .filter(|obj| start_type_names.contains(&obj.object_type))
         .map(|o| &o.id)
@@ -132,9 +142,7 @@ pub fn generic_case_notion_to_ocels(
     let e2o_map = build_e2o_map(log, &generic_case_notion.e2o_relations);
     let o2e_map = build_o2e_map(log, &generic_case_notion.e2o_relations);
 
-
     print_relation_maps(&o2o_map, &e2o_map, &o2e_map);
-
 
     while let Some(&start_object) = start_objects.iter().next() {
         start_objects.remove(start_object);
@@ -150,7 +158,7 @@ pub fn generic_case_notion_to_ocels(
 
         loop {
             let mut new_objects: FxHashSet<&String> = FxHashSet::default();
-            let mut new_events: FxHashSet<&String>  = FxHashSet::default();
+            let mut new_events: FxHashSet<&String> = FxHashSet::default();
 
             // Step 1: from objects → other objects (O2O)
             for obj_id in &objects_to_analyse {
@@ -158,7 +166,7 @@ pub fn generic_case_notion_to_ocels(
                     for o in neigh {
                         if objects.insert(o) {
                             new_objects.insert(o);
-                            
+
                             start_objects.remove(o); // ensure no new case will be created from this object
                         }
                     }
@@ -200,11 +208,9 @@ pub fn generic_case_notion_to_ocels(
 
         // Append the new log to the result
         result.push(case);
-
     }
     result
 }
-
 
 /// HELPER FUNCTION
 /// Build a lookup map for fast O2O traversal.
@@ -218,16 +224,17 @@ pub fn build_o2o_map(
     let allowed: FxHashMap<&str, Vec<&str>> = {
         let mut map: FxHashMap<&str, Vec<&str>> = FxHashMap::default();
         for (src, tgt) in o2o_relations {
-            map.entry(&tgt.name)
-                .or_default()
-                .push(&src.name);
+            map.entry(&tgt.name).or_default().push(&src.name);
         }
         map
     };
 
     // Build a lookup: object_id -> object_type
-    let type_of: FxHashMap<&str, &str> =
-        log.objects.iter().map(|o| (o.id.as_str(), o.object_type.as_str())).collect();
+    let type_of: FxHashMap<&str, &str> = log
+        .objects
+        .iter()
+        .map(|o| (o.id.as_str(), o.object_type.as_str()))
+        .collect();
 
     // Result map: for each o', which o’s are reachable
     let mut o2o_map: FxHashMap<String, Vec<String>> = FxHashMap::default();
@@ -264,16 +271,17 @@ pub fn build_e2o_map(
     let allowed: FxHashMap<&str, Vec<&str>> = {
         let mut map: FxHashMap<&str, Vec<&str>> = FxHashMap::default();
         for (a, b) in e2o_relations {
-            map.entry(&a.name)
-                .or_default()
-                .push(&b.name);
+            map.entry(&a.name).or_default().push(&b.name);
         }
         map
     };
 
     // Object lookup: object_id -> object_type
-    let type_of: FxHashMap<&str, &str> =
-        log.objects.iter().map(|o| (o.id.as_str(), o.object_type.as_str())).collect();
+    let type_of: FxHashMap<&str, &str> = log
+        .objects
+        .iter()
+        .map(|o| (o.id.as_str(), o.object_type.as_str()))
+        .collect();
 
     // Result: event_id -> reachable objects
     let mut e2o_map: FxHashMap<String, Vec<String>> = FxHashMap::default();
@@ -311,16 +319,17 @@ pub fn build_o2e_map(
     let allowed: FxHashMap<&str, Vec<&str>> = {
         let mut map: FxHashMap<&str, Vec<&str>> = FxHashMap::default();
         for (a, b) in e2o_relations {
-            map.entry(&a.name)
-                .or_default()
-                .push(&b.name);
+            map.entry(&a.name).or_default().push(&b.name);
         }
         map
     };
 
     // Object lookup: object_id -> object_type
-    let type_of: FxHashMap<&str, &str> =
-        log.objects.iter().map(|o| (o.id.as_str(), o.object_type.as_str())).collect();
+    let type_of: FxHashMap<&str, &str> = log
+        .objects
+        .iter()
+        .map(|o| (o.id.as_str(), o.object_type.as_str()))
+        .collect();
 
     // Result: object_id -> reachable events
     let mut o2e_map: FxHashMap<String, Vec<String>> = FxHashMap::default();
@@ -344,7 +353,6 @@ pub fn build_o2e_map(
 
     o2e_map
 }
-
 
 /// Build a sub-OCEL containing only the selected events and objects (and their corresponding types),
 /// using precomputed lookup maps for fast access.
@@ -426,10 +434,9 @@ fn build_case(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*; 
+    use super::*;
     use std::path::PathBuf;
     use tokio;
     use tokio::fs as tokio_fs;
@@ -448,8 +455,11 @@ mod tests {
         let ocel: OCEL = serde_json::from_str(&ocel_data).expect("failed to parse OCEL JSON");
 
         // 4. Define start types and relations
-        let start_types = vec![OCELType { name: "worker".to_string(), attributes: vec![] }];
-        let o2o_relations= vec![];
+        let start_types = vec![OCELType {
+            name: "worker".to_string(),
+            attributes: vec![],
+        }];
+        let o2o_relations = vec![];
 
         // this should result in empty cases
         // let e2o_relations= vec![
@@ -464,15 +474,47 @@ mod tests {
         // ];
 
         // eq to trad CN for worker: this should result in non-empty cases
-        let e2o_relations= vec![
-            (OCELType { name: "worker".to_string(), attributes: vec![] },
-             OCELType { name: "Worker arrival".to_string(), attributes: vec![] }),
-            (OCELType { name: "worker".to_string(), attributes: vec![] },
-             OCELType { name: "Worker departure".to_string(), attributes: vec![] }),
-            (OCELType { name: "worker".to_string(), attributes: vec![] },
-             OCELType { name: "Load materials".to_string(), attributes: vec![] }),
-            (OCELType { name: "worker".to_string(), attributes: vec![] },
-             OCELType { name: "Unload materials".to_string(), attributes: vec![] }),
+        let e2o_relations = vec![
+            (
+                OCELType {
+                    name: "worker".to_string(),
+                    attributes: vec![],
+                },
+                OCELType {
+                    name: "Worker arrival".to_string(),
+                    attributes: vec![],
+                },
+            ),
+            (
+                OCELType {
+                    name: "worker".to_string(),
+                    attributes: vec![],
+                },
+                OCELType {
+                    name: "Worker departure".to_string(),
+                    attributes: vec![],
+                },
+            ),
+            (
+                OCELType {
+                    name: "worker".to_string(),
+                    attributes: vec![],
+                },
+                OCELType {
+                    name: "Load materials".to_string(),
+                    attributes: vec![],
+                },
+            ),
+            (
+                OCELType {
+                    name: "worker".to_string(),
+                    attributes: vec![],
+                },
+                OCELType {
+                    name: "Unload materials".to_string(),
+                    attributes: vec![],
+                },
+            ),
         ];
 
         // eq to CCCN: should result in a single case for simple construction-site.json
@@ -540,11 +582,16 @@ mod tests {
             // write ocel as serde json to file in folder generic_cn_results/{datetime}/case_{i}.json
             let now = chrono::Local::now();
             let folder_name = format!("generic_cn_results/{}", now.format("%Y%m%d_%H%M%S"));
-            tokio_fs::create_dir_all(&folder_name).await.expect("failed to create output directory");
+            tokio_fs::create_dir_all(&folder_name)
+                .await
+                .expect("failed to create output directory");
             let case_index = cases.iter().position(|c| c == case).unwrap();
             let file_path = format!("{}/case_{}.json", folder_name, case_index);
-            let case_json = serde_json::to_string_pretty(case).expect("failed to serialize case to JSON");
-            tokio_fs::write(&file_path, case_json).await.expect("failed to write case JSON to file");
+            let case_json =
+                serde_json::to_string_pretty(case).expect("failed to serialize case to JSON");
+            tokio_fs::write(&file_path, case_json)
+                .await
+                .expect("failed to write case JSON to file");
         }
 
         // 6. Print to console
@@ -552,8 +599,6 @@ mod tests {
         //println!("{:#?}", cases[0]);
     }
 }
-
-
 
 use log::debug;
 
@@ -563,7 +608,7 @@ fn print_relation_maps(
     o2e_map: &FxHashMap<String, Vec<String>>,
 ) {
     debug!("================== Relation Maps ==================");
-    
+
     debug!("O2O Map:");
     for (k, v) in o2o_map {
         debug!("  {} -> {:?}", k, v);

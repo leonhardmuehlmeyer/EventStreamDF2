@@ -1,7 +1,7 @@
 use crate::core::case_notion::main::{CaseNotionArch, CaseNotionCase, CaseNotionEvaluation};
 use crate::core::case_notion::measures::measure_value;
-use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELRelationship, OCELType};
 use process_mining::OCEL;
+use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELRelationship, OCELType};
 
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
 use rustc_hash::{FxHashMap, FxHashSet};

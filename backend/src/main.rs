@@ -7,10 +7,9 @@ mod traits;
 use anyhow::Result;
 use core::struct_converters::ocel_1_ocel_2_converter::convert_file;
 use std::path::Path;
-use tracing_subscriber::prelude::*; 
-use tracing_subscriber::fmt;
 use tracing_subscriber::filter::EnvFilter;
-
+use tracing_subscriber::fmt;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -31,7 +30,6 @@ async fn main() -> Result<()> {
         .init();
 
     log::debug!("Starting server...");
-
 
     // No args: start the HTTP server
     let app = routes::create_routes();
