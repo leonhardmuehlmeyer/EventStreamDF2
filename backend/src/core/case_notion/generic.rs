@@ -1,5 +1,4 @@
 use crate::models::case_notion::GenericCaseNotion;
-use log::LevelFilter;
 use process_mining::OCEL;
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -116,6 +115,7 @@ pub fn generic_case_notion(
     result
 }
 
+#[allow(dead_code)] //didn't write the function and might be useful in the future
 pub fn generic_case_notion_to_ocels(
     generic_case_notion: &GenericCaseNotion,
     event_lookup: &FxHashMap<String, OCELEvent>,
