@@ -2,38 +2,41 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { Position } from '@xyflow/react';
 import { Eye } from 'lucide-react';
-import { data, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '~/components/ui/button';
-import BaseVisualizationNode from '~/components/explore/visualization/BaseVisualizationNode';
+import BaseFileNode from '~/components/explore/file/BaseFileNode';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useGetOcel } from '~/services/queries';
-import { isFullVisualizationData } from '~/lib/explore/exploreNodes.utils';
-import { VisualizationNode } from '~/types/explore/nodes';
+import { FileNode } from '~/types/explore/nodes';
 
-const EventGraphVisualizationNode = memo<NodeProps<VisualizationNode>>((node) => {
-    const { id, data: nodeData } = node;
-    const { updateNodeData } = useExploreFlowStore();
+const ObjectEventGraphNode = memo<NodeProps<FileNode>>((props) => {
+    const [fileId, setFileId] = useState<null | string>(null);
+    const { data } = useGetOcel(fileId);
     const navigate = useNavigate();
+    const { updateNodeData } = useExploreFlowStore();
+    const { id, data: nodeData } = props;
+    const { assets } = nodeData;
 
-    const { processedData, assets } = nodeData;
+    useMemo(() => {
+        if (assets.length === 1) {
+            setFileId(assets[0].id);
+        } else {
+            setFileId(null);
+        }
+    }, [assets]);
 
-    // Automatically set fileId from input asset
-
-    // Update node data when OCEL data is fetched
     useEffect(() => {
         if (data) {
             updateNodeData(id, { processedData: data });
         }
     }, [data, id, updateNodeData]);
 
-    // Open the viewer route
     const visualize = () => {
-        navigate(`/data/pipeline/explore/ocel/${node.id}`);
+        navigate(`/data/pipeline/explore/ocel/${id}`);
     };
 
-    // Show a “View” button only when data is ready
     const renderVisualizationActions = () => {
-        if (assets.length === 1 && isFullVisualizationData(nodeData)) {
+        if (assets.length === 1) {
             return (
                 <div className="flex items-center">
                     <Button
@@ -50,18 +53,15 @@ const EventGraphVisualizationNode = memo<NodeProps<VisualizationNode>>((node) =>
     };
 
     return (
-        <BaseVisualizationNode
-            {...node}
-            title="Graph Viewer"
+        <BaseFileNode
+            {...props}
+            title="Object Event-Graph"
             iconName="network"
-            handleOptions={[
-                { position: Position.Left, type: 'target' },
-                { position: Position.Right, type: 'source' },
-            ]}
+            handleOptions={[{ position: Position.Right, type: 'source' as const }]}
             dropdownOptions={[{ label: 'Change Source', action: 'changeSourceFile' as const }]}
             customActions={renderVisualizationActions()}
         />
     );
 });
 
-export default EventGraphVisualizationNode;
+export default ObjectEventGraphNode;

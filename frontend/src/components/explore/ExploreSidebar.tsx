@@ -1,4 +1,4 @@
-import { Eye, File, FileJson, FileSpreadsheet, Network, Pickaxe, TreePine, Workflow } from 'lucide-react';
+import { File, FileJson, FileSpreadsheet, Network, Pickaxe, TreePine, Workflow } from 'lucide-react';
 import {
     Sidebar,
     SidebarContent,
@@ -29,24 +29,8 @@ const ExploreSidebar: React.FC<ExploreSidebarProps> = ({}) => {
                             <SidebarMenuItem className="ml-1">
                                 <DndCard title="OCEL File" Icon={FileSpreadsheet} nodeType="ocelFileNode" />
                             </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-                <SidebarGroup>
-                    <SidebarGroupLabel>
-                        <Eye />
-                        <p className="ml-1">Visualizations</p>
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent className="p-1">
-                        <SidebarMenu className="flex flex-row">
                             <SidebarMenuItem className="ml-1">
-                                <DndCard title="OCPT Visualization" Icon={Network} nodeType="ocptVisualizationNode" />
-                            </SidebarMenuItem>
-                            <SidebarMenuItem className="ml-1">
-                                <DndCard title="LBOF Visualization" Icon={Workflow} nodeType="lbofVisualizationNode" />
-                            </SidebarMenuItem>
-                            <SidebarMenuItem className="ml-1">
-                                <DndCard title="Event Graph" Icon={Network} nodeType="eventGraphVisualizationNode" />
+                                <DndCard title="Object Event-Graph" Icon={Network} nodeType="objectEventGraphNode" />
                             </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>
@@ -60,6 +44,13 @@ const ExploreSidebar: React.FC<ExploreSidebarProps> = ({}) => {
                         <SidebarMenu className="flex flex-row">
                             <SidebarMenuItem className="ml-1">
                                 <DndCard title="OCPT Miner" Icon={TreePine} nodeType="ocptMinerNode" />
+                            </SidebarMenuItem>
+                            <SidebarMenuItem className="ml-1">
+                                <DndCard
+                                    title="Object Event-Graph Miner"
+                                    Icon={Workflow}
+                                    nodeType="objectEventGraphMinerNode"
+                                />
                             </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>

@@ -5,9 +5,11 @@ import { SidebarInset, SidebarProvider } from '~/components/ui/sidebar';
 import BreadcrumbNav from '~/components/BreadcrumbNav';
 import { DnDProvider, useDnD } from '~/components/explore/DndContext';
 import ExploreSidebar from '~/components/explore/ExploreSidebar';
+import ObjectEventGraphNode from '~/components/explore/file/ObjectEventGraphNode';
 import OcelFileNode from '~/components/explore/file/OcelFileNode';
 import OcptFileNode from '~/components/explore/file/OcptFileNode';
 import FileSelectionDialog from '~/components/explore/file/ui/FileSelectionDialog';
+import ObjectEventGraphMinerNode from '~/components/explore/miner/ObjectEventGraphMinerNode';
 import OcelMinerNode from '~/components/explore/miner/OcelMinerNode';
 import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
 import EventGraphVisualizationNode from '~/components/explore/visualization/EventGraphVisualizationNode';
@@ -28,6 +30,8 @@ const nodeTypes = {
     ocptFileNode: OcptFileNode,
     eventGraphVisualizationNode: EventGraphVisualizationNode,
     ocelMinerNode: OcelMinerNode,
+    objectEventGraphNode: ObjectEventGraphNode,
+    objectEventGraphMinerNode: ObjectEventGraphMinerNode,
 };
 
 const Explore: React.FC = () => {

@@ -1,4 +1,4 @@
-export const fileNodeTypes = ['ocptFileNode', 'ocelFileNode'] as const;
+export const fileNodeTypes = ['ocptFileNode', 'ocelFileNode', 'objectEventGraphNode'] as const;
 export type ExploreFileNodeType = (typeof fileNodeTypes)[number];
 
 export const visualizationNodeTypes = [
@@ -8,7 +8,7 @@ export const visualizationNodeTypes = [
 ] as const;
 export type ExploreVisualizationNodeType = (typeof visualizationNodeTypes)[number];
 
-export const minerNodeTypes = ['ocptMinerNode'] as const;
+export const minerNodeTypes = ['ocptMinerNode', 'objectEventGraphMinerNode'] as const;
 export type ExploreMinerNodeType = (typeof minerNodeTypes)[number];
 
 export type ExploreNodeType = ExploreFileNodeType | ExploreVisualizationNodeType | ExploreMinerNodeType;

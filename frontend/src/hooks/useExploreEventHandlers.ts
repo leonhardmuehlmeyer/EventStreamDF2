@@ -51,11 +51,12 @@ export const useExploreEventHandlers = () => {
 
                     if (isMinerNode(node)) {
                         const neighbors = directedNeighborMap.current.get(id) || [];
-                        const currentAssetIds = new Set(currentAssets.map((a) => a.id));
-                        const newOutputAssets =
+                        const newAssets =
                             newData.assets?.filter(
-                                (asset) => asset.io === 'output' && !currentAssetIds.has(asset.id)
+                                (newAsset) => !currentAssets.some((oldAsset) => isEqual(newAsset, oldAsset))
                             ) ?? [];
+
+                        const newOutputAssets = newAssets.filter((asset) => asset.io === 'output');
 
                         newOutputAssets.forEach((asset, index) => {
                             const nodeType = assetTypeToNodeType(asset.type);
