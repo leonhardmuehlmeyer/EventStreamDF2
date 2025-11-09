@@ -72,7 +72,7 @@ curl "http://localhost:3000/v1/case_notion/advanced/<file_id>?object_type=defaul
 
 ```bash
 
-curl "http://localhost:3000/v1/event_object_frequencies/get_event_object_frequencies7/<file_id>"
+curl "http://localhost:3000/v1/event_object_frequencies/histogram/<file_id>"
 
 curl "http://localhost:3000/v1/event_object_frequencies/histogram_filter/<file_id><JSON>"
 

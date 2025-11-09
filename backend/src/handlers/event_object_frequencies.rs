@@ -13,8 +13,8 @@ use serde_json::Value;
 use tokio::fs as tokio_fs;
 use uuid::Uuid;
 
-/// GET /v1/event_object_frequencies/:file_id
-/// -> loads ./temp/ocpt_{file_id}.json and ./temp/ocel_{file_id}.json
+/// GET /v1/event_object_frequencies/histogram/:file_id
+/// Returns: JSON object containing event-object frequency histograms
 pub async fn get_event_object_frequencies(
     AxumPath(ocel_file_id): AxumPath<String>,
 ) -> impl IntoResponse {
@@ -47,9 +47,9 @@ pub async fn get_event_object_frequencies(
     (StatusCode::OK, AxumJson(histogram)).into_response()
 }
 
-/// POST /v1/ocel_filter/:file_id
+/// POST /v1/event_object_frequencies/histogram_filter/:file_id
 /// Body: JSON following the `SelectionPayload` scheme
-/// Returns: array of filtered OCELs
+/// Returns: array of ids, each corresonding to one stored OCEL per provided filter mask
 pub async fn post_ocel_filter(
     AxumPath(ocel_file_id): AxumPath<String>,
     AxumJson(selection_json): AxumJson<Value>,
