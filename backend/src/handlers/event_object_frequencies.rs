@@ -4,9 +4,14 @@ use crate::core::event_object_frequencies::{
 
 use crate::models::ocel::OCEL;
 use axum::{
-    extract::Json as AxumJson, extract::Path as AxumPath, http::StatusCode, response::IntoResponse,
+    extract::Path as AxumPath,
+    http::StatusCode,
+    response::IntoResponse,
+    Json as AxumJson,
 };
+use serde_json::Value;
 use tokio::fs as tokio_fs;
+use uuid::Uuid;
 
 /// GET /v1/event_object_frequencies/:file_id
 /// -> loads ./temp/ocpt_{file_id}.json and ./temp/ocel_{file_id}.json
@@ -39,7 +44,7 @@ pub async fn get_event_object_frequencies(
 
     let histogram = build_event_object_histograms(&ocel);
 
-    (StatusCode::OK, axum::Json(histogram)).into_response()
+    (StatusCode::OK, AxumJson(histogram)).into_response()
 }
 
 /// POST /v1/ocel_filter/:file_id
@@ -47,30 +52,28 @@ pub async fn get_event_object_frequencies(
 /// Returns: array of filtered OCELs
 pub async fn post_ocel_filter(
     AxumPath(ocel_file_id): AxumPath<String>,
-    AxumJson(selection_json): AxumJson<serde_json::Value>,
-) -> impl IntoResponse {
+    AxumJson(selection_json): AxumJson<Value>,
+) -> Result<AxumJson<Vec<String>>, (StatusCode, String)> {
     let ocel_path = format!("./temp/ocel_v2_{}.json", ocel_file_id);
 
     // 1. Load the OCEL
     let ocel_data: String = match tokio_fs::read_to_string(&ocel_path).await {
         Ok(s) => s,
         Err(e) => {
-            return (
+            return Err((
                 StatusCode::NOT_FOUND,
                 format!("OCEL not found at {}: {}", ocel_path, e),
-            )
-                .into_response();
+            ));
         }
     };
 
     let ocel: OCEL = match serde_json::from_str(&ocel_data) {
         Ok(o) => o,
         Err(e) => {
-            return (
+            return Err((
                 StatusCode::BAD_REQUEST,
-                format!("Failed to parse OCEL JSON ({}): {}", ocel_path, e),
-            )
-                .into_response();
+                format!("Failed to parse OCEL JSON {}: {}", ocel_path, e),
+            ));
         }
     };
 
@@ -78,14 +81,38 @@ pub async fn post_ocel_filter(
     let filtered_ocels = match serde_json::to_string(&selection_json) {
         Ok(json_str) => filter_ocel_histograms(&ocel, &json_str),
         Err(e) => {
-            return (
+            return Err((
                 StatusCode::BAD_REQUEST,
                 format!("Failed to serialize selection JSON: {}", e),
-            )
-                .into_response();
+            ));
         }
     };
 
+    let mut ids = Vec::new();
+
+    for ocel in &filtered_ocels {
+        let export_id = Uuid::new_v4().to_string();
+        let filename = format!("./temp/ocel_v2_{}.json", &export_id);
+
+        let data = serde_json::to_string_pretty(ocel).map_err(|err| {
+            eprintln!("serialize filtered OCEL failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize OCELs".to_string(),
+            )
+        })?;
+
+        tokio_fs::write(&filename, data).await.map_err(|err| {
+            eprintln!("write case notion OCELs failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to persist case notion OCELs".to_string(),
+            )
+        })?;
+
+        ids.push(export_id);
+    }
+
     // 3. Return JSON array of filtered OCELs
-    (StatusCode::OK, axum::Json(filtered_ocels)).into_response()
+    Ok(AxumJson(ids))
 }
