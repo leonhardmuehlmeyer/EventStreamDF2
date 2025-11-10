@@ -3,14 +3,14 @@ import type { NodeProps } from '@xyflow/react';
 import { Position } from '@xyflow/react';
 import BaseMinerNode from '~/components/explore/miner/BaseMinerNode';
 import { useGetOcpt } from '~/services/queries';
-import type {
+import {
     BaseExploreNodeAsset,
     BaseExploreNodeDropdownActionType,
     BaseExploreNodeDropdownOption,
-    TMinerNode,
-} from '~/types/explore';
+} from '~/types/explore/nodeData/baseNodeData';
+import { MinerNode } from '~/types/explore/nodes';
 
-const OcptMinerNode = memo<NodeProps<TMinerNode>>((node) => {
+const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
     const [fileId, setFileId] = useState<null | string>(null);
     const [fileName, setFileName] = useState<string>('');
 
