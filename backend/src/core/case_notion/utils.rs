@@ -1,3 +1,5 @@
+use crate::core::case_notion::main::{CaseNotionEvaluation};
+use crate::core::case_notion::measures::measure_value;
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject};
 
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
@@ -301,4 +303,30 @@ pub fn detect_diverging_object_types(
     }
 
     divergent_object_types_map
+}
+
+const EPSILON: f64 = 1e-9;
+
+pub(crate) fn is_better_evaluation(
+    candidate: &CaseNotionEvaluation,
+    current: Option<&CaseNotionEvaluation>,
+) -> bool {
+    match current {
+        None => true,
+        Some(best) => {
+            let cand_f1 = candidate.f1_score.unwrap_or(0.0);
+            let best_f1 = best.f1_score.unwrap_or(0.0);
+            if (cand_f1 - best_f1).abs() > EPSILON {
+                cand_f1 > best_f1
+            } else {
+                let cand_corr = measure_value(&candidate.measures, "Correctness").unwrap_or(0.0);
+                let best_corr = measure_value(&best.measures, "Correctness").unwrap_or(0.0);
+                if (cand_corr - best_corr).abs() > EPSILON {
+                    cand_corr > best_corr
+                } else {
+                    candidate.total_score > best.total_score
+                }
+            }
+        }
+    }
 }

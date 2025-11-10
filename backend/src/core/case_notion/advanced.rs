@@ -1,5 +1,10 @@
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
+use crate::core::case_notion::log_graphs::{ArcEntry, LogGraphTypeLevel};
+use crate::core::case_notion::main::{CaseNotionContext, CaseNotionEvaluation};
+use crate::core::case_notion::measures::{average_score, calculate_measures, f1_from_measures};
+use crate::core::case_notion::utils::is_better_evaluation;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde_json::Value;
 use std::collections::BTreeSet;
 use std::default::Default;
 
@@ -183,4 +188,221 @@ pub fn advanced_case_notion_for_ot(
     }
 
     result
+}
+
+/// Partition the type-level log graph using the advanced case notion logic.
+/// Keeps the starting object type and all non-diverging object types (plus their
+/// connecting event types) in the selected section while pushing diverging paths
+/// into the deselected fields.
+pub fn advanced_case_notion_type_level(
+    graph_value: &Value,
+    starting_object_type: &str,
+    divergence_map: &FxHashMap<String, FxHashSet<String>>,
+) -> Value {
+    let graph: LogGraphTypeLevel = serde_json::from_value(graph_value.clone())
+        .expect("build_log_graph_type_level must return a valid graph structure");
+
+    let LogGraphTypeLevel {
+        mut event_types,
+        mut object_types,
+        mut arcs,
+        deselected_event_types,
+        deselected_object_types,
+        deselected_arcs,
+    } = graph;
+
+    event_types.extend(deselected_event_types);
+    object_types.extend(deselected_object_types);
+    arcs.extend(deselected_arcs);
+
+    if !object_types
+        .iter()
+        .any(|object_type| object_type == starting_object_type)
+    {
+        let result = LogGraphTypeLevel {
+            event_types: Vec::new(),
+            object_types: Vec::new(),
+            arcs: Vec::new(),
+            deselected_event_types: event_types,
+            deselected_object_types: object_types,
+            deselected_arcs: arcs,
+        };
+        return serde_json::to_value(result)
+            .expect("advanced case notion graph must serialize to JSON");
+    }
+
+    let mut event_to_objects: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
+    let mut object_to_events: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
+
+    for arc in &arcs {
+        event_to_objects
+            .entry(arc.source_type.clone())
+            .or_default()
+            .insert(arc.target_type.clone());
+        object_to_events
+            .entry(arc.target_type.clone())
+            .or_default()
+            .insert(arc.source_type.clone());
+    }
+
+    let mut visited_objects: FxHashSet<String> = FxHashSet::default();
+    let mut non_diverging_objects: FxHashSet<String> = FxHashSet::default();
+    let mut diverging_objects: FxHashSet<String> = FxHashSet::default();
+    let mut frontier_objects: FxHashSet<String> = FxHashSet::default();
+    let mut visited_events: FxHashSet<String> = FxHashSet::default();
+
+    visited_objects.insert(starting_object_type.to_string());
+    non_diverging_objects.insert(starting_object_type.to_string());
+    frontier_objects.insert(starting_object_type.to_string());
+
+    while !frontier_objects.is_empty() {
+        let mut new_events: FxHashSet<String> = FxHashSet::default();
+        for object_type in &frontier_objects {
+            if let Some(events) = object_to_events.get(object_type) {
+                for event_type in events {
+                    if visited_events.insert(event_type.clone()) {
+                        new_events.insert(event_type.clone());
+                    }
+                }
+            }
+        }
+
+        let mut new_frontier_objects: FxHashSet<String> = FxHashSet::default();
+        for event_type in &new_events {
+            if let Some(objects) = event_to_objects.get(event_type) {
+                for object_type in objects {
+                    if visited_objects.contains(object_type) {
+                        continue;
+                    }
+                    visited_objects.insert(object_type.clone());
+
+                    let diverges = divergence_map
+                        .get(event_type)
+                        .map(|set| set.contains(object_type))
+                        .unwrap_or(false);
+
+                    if diverges {
+                        diverging_objects.insert(object_type.clone());
+                    } else {
+                        non_diverging_objects.insert(object_type.clone());
+                        new_frontier_objects.insert(object_type.clone());
+                    }
+                }
+            }
+        }
+
+        frontier_objects = new_frontier_objects;
+    }
+
+    let mut selected_event_types = Vec::new();
+    let mut deselected_event_types = Vec::new();
+    for event_type in event_types.into_iter() {
+        if visited_events.contains(&event_type) {
+            selected_event_types.push(event_type);
+        } else {
+            deselected_event_types.push(event_type);
+        }
+    }
+
+    let mut selected_object_types = Vec::new();
+    let mut deselected_object_types = Vec::new();
+    for object_type in object_types.into_iter() {
+        if non_diverging_objects.contains(&object_type) {
+            selected_object_types.push(object_type);
+        } else if diverging_objects.contains(&object_type) || visited_objects.contains(&object_type)
+        {
+            deselected_object_types.push(object_type);
+        } else {
+            deselected_object_types.push(object_type);
+        }
+    }
+
+    let mut selected_arcs: Vec<ArcEntry> = Vec::new();
+    let mut deselected_arcs: Vec<ArcEntry> = Vec::new();
+    for arc in arcs.into_iter() {
+        if visited_events.contains(&arc.source_type)
+            && non_diverging_objects.contains(&arc.target_type)
+        {
+            selected_arcs.push(arc);
+        } else {
+            deselected_arcs.push(arc);
+        }
+    }
+
+    let result = LogGraphTypeLevel {
+        event_types: selected_event_types,
+        object_types: selected_object_types,
+        arcs: selected_arcs,
+        deselected_event_types,
+        deselected_object_types,
+        deselected_arcs,
+    };
+
+    serde_json::to_value(result).expect("advanced case notion graph must serialize to JSON")
+}
+
+pub fn best_advanced_case_notion(
+    context: &CaseNotionContext,
+    object_type: Option<&str>,
+) -> Option<CaseNotionEvaluation> {
+    match object_type {
+        Some(requested) => {
+            if !context
+                .sorted_object_types()
+                .iter()
+                .any(|ot| ot == requested)
+            {
+                return None;
+            }
+            evaluate_advanced_case_notion_for_object_type(context, requested)
+        }
+        None => {
+            let mut best: Option<CaseNotionEvaluation> = None;
+            for object_type in context.sorted_object_types() {
+                if let Some(evaluation) =
+                    evaluate_advanced_case_notion_for_object_type(context, object_type)
+                {
+                    if is_better_evaluation(&evaluation, best.as_ref()) {
+                        best = Some(evaluation);
+                    }
+                }
+            }
+            best
+        }
+    }
+}
+
+fn evaluate_advanced_case_notion_for_object_type(
+    context: &CaseNotionContext,
+    object_type: &str,
+) -> Option<CaseNotionEvaluation> {
+    let case_notion = advanced_case_notion_for_ot(
+        context.cleaned_event_identifiers(),
+        context.object_identifiers(),
+        object_type.to_string(),
+        context.divergence_map(),
+    );
+
+    if case_notion.is_empty() {
+        return None;
+    }
+
+    let measures = calculate_measures(
+        &case_notion,
+        context.event_identifiers(),
+        context.object_identifiers(),
+        context.arches(),
+        context.total_number_of_objects(),
+        context.total_number_of_events(),
+    );
+    let total_score = average_score(&measures);
+    let f1_score = f1_from_measures(&measures);
+
+    Some(CaseNotionEvaluation {
+        object_type: Some(object_type.to_string()),
+        measures,
+        total_score,
+        f1_score,
+        case_notion,
+    })
 }

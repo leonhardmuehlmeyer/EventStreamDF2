@@ -1,5 +1,6 @@
 pub mod advanced;
 pub mod connected_component;
+pub mod generic;
 pub mod log_graphs;
 pub mod main;
 pub mod measures;

@@ -1,0 +1,122 @@
+{
+  "eventTypes": [
+    { "name": "Worker arrival", "attributes": [] },
+    { "name": "Load materials", "attributes": [] },
+    { "name": "Transport materials", "attributes": [] },
+    { "name": "Unload materials", "attributes": [] },
+    { "name": "Worker departure", "attributes": [] }
+  ],
+  "objectTypes": [
+    { "name": "worker", "attributes": [] },
+    { "name": "truck", "attributes": [] },
+    { "name": "crane", "attributes": [] }
+  ],
+  "events": [
+    {
+      "id": "e1",
+      "type": "Worker arrival",
+      "time": "2025-10-04T07:00:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "w1", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e2",
+      "type": "Worker arrival",
+      "time": "2025-10-04T07:05:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "w2", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e3",
+      "type": "Truck arrival",
+      "time": "2025-10-04T07:15:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "t1", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e4",
+      "type": "Load materials",
+      "time": "2025-10-04T07:30:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "w1", "qualifier": "participant" },
+        { "objectId": "t1", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e5",
+      "type": "Transport materials",
+      "time": "2025-10-04T08:00:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "t1", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e6",
+      "type": "Unload materials",
+      "time": "2025-10-04T08:20:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "t1", "qualifier": "participant" },
+        { "objectId": "c1", "qualifier": "participant" },
+        { "objectId": "w2", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e7",
+      "type": "Load materials",
+      "time": "2025-10-04T08:45:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "w3", "qualifier": "participant" },
+        { "objectId": "t2", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e8",
+      "type": "Transport materials",
+      "time": "2025-10-04T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "t2", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e9",
+      "type": "Unload materials",
+      "time": "2025-10-04T09:15:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "t2", "qualifier": "participant" },
+        { "objectId": "c1", "qualifier": "participant" },
+        { "objectId": "w3", "qualifier": "participant" }
+      ]
+    },
+    {
+      "id": "e10",
+      "type": "Worker departure",
+      "time": "2025-10-04T10:00:00Z",
+      "attributes": [],
+      "relationships": [
+        { "objectId": "w1", "qualifier": "participant" },
+        { "objectId": "w2", "qualifier": "participant" },
+        { "objectId": "w3", "qualifier": "participant" }
+      ]
+    }
+  ],
+  "objects": [
+    { "id": "w1", "type": "worker", "attributes": [] },
+    { "id": "w2", "type": "worker", "attributes": [] },
+    { "id": "w3", "type": "worker", "attributes": [] },
+    { "id": "t1", "type": "truck", "attributes": [] },
+    { "id": "t2", "type": "truck", "attributes": [] },
+    { "id": "c1", "type": "crane", "attributes": [] }
+  ]
+}

@@ -64,4 +64,5 @@ curl "http://localhost:3000/v1/case_notion/advanced/<file_id>?object_type=<objec
 
 curl "http://localhost:3000/v1/case_notion/advanced/<file_id>?object_type=default"
 
+curl "http://localhost:3000/v1/case_notion/case_ocel/<case_notion_file_id>"
 ```
