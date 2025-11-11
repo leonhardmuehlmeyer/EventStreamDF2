@@ -1,5 +1,11 @@
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
+use crate::core::case_notion::log_graphs::LogGraphTypeLevel;
+use crate::core::case_notion::main::{CaseNotionContext, CaseNotionEvaluation};
+use crate::core::case_notion::measures::{average_score, calculate_measures, f1_from_measures};
+use crate::core::case_notion::utils::is_better_evaluation;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde_json::Value;
+use std::collections::HashSet;
 use std::default::Default;
 
 /*
@@ -31,4 +37,150 @@ pub fn traditional_case_notion_for_ot(
     }
 
     result
+}
+
+/// Partition the graph to keep only the starting object type and its direct neighbors
+/// (event types connected by a single arc), placing all remaining nodes and arcs in the
+/// deselected fields.
+#[allow(dead_code)]
+pub fn traditional_case_notion_type_level(
+    graph_value: &Value,
+    starting_object_type: &str,
+) -> Value {
+    let graph: LogGraphTypeLevel = serde_json::from_value(graph_value.clone())
+        .expect("build_log_graph_type_level must return a valid graph structure");
+
+    let LogGraphTypeLevel {
+        mut event_types,
+        mut object_types,
+        mut arcs,
+        deselected_event_types,
+        deselected_object_types,
+        deselected_arcs,
+    } = graph;
+
+    event_types.extend(deselected_event_types);
+    object_types.extend(deselected_object_types);
+    arcs.extend(deselected_arcs);
+
+    if !object_types
+        .iter()
+        .any(|object_type| object_type == starting_object_type)
+    {
+        let result = LogGraphTypeLevel {
+            event_types: Vec::new(),
+            object_types: Vec::new(),
+            arcs: Vec::new(),
+            deselected_event_types: event_types,
+            deselected_object_types: object_types,
+            deselected_arcs: arcs,
+        };
+        return serde_json::to_value(result)
+            .expect("traditional case notion graph must serialize to JSON");
+    }
+
+    let mut selected_event_types_set: HashSet<String> = HashSet::new();
+    let mut selected_arcs = Vec::new();
+    let mut deselected_arcs = Vec::new();
+    for arc in arcs.into_iter() {
+        if arc.target_type == starting_object_type {
+            selected_event_types_set.insert(arc.source_type.clone());
+            selected_arcs.push(arc);
+        } else {
+            deselected_arcs.push(arc);
+        }
+    }
+
+    let mut selected_event_types = Vec::new();
+    let mut deselected_event_types = Vec::new();
+    for event_type in event_types.into_iter() {
+        if selected_event_types_set.contains(&event_type) {
+            selected_event_types.push(event_type);
+        } else {
+            deselected_event_types.push(event_type);
+        }
+    }
+
+    let mut selected_object_types = Vec::new();
+    let mut deselected_object_types = Vec::new();
+    for object_type in object_types.into_iter() {
+        if object_type == starting_object_type {
+            selected_object_types.push(object_type);
+        } else {
+            deselected_object_types.push(object_type);
+        }
+    }
+
+    let result = LogGraphTypeLevel {
+        event_types: selected_event_types,
+        object_types: selected_object_types,
+        arcs: selected_arcs,
+        deselected_event_types,
+        deselected_object_types,
+        deselected_arcs,
+    };
+
+    serde_json::to_value(result).expect("traditional case notion graph must serialize to JSON")
+}
+
+pub fn traditional_case_notion(
+    context: &CaseNotionContext,
+    object_type: Option<&str>,
+) -> Option<CaseNotionEvaluation> {
+    match object_type {
+        Some(requested) => {
+            if !context
+                .sorted_object_types()
+                .iter()
+                .any(|ot| ot == requested)
+            {
+                return None;
+            }
+            evaluate_traditional_case_notion_for_object_type(context, requested)
+        }
+        None => {
+            let mut best: Option<CaseNotionEvaluation> = None;
+            for object_type in context.sorted_object_types() {
+                if let Some(evaluation) =
+                    evaluate_traditional_case_notion_for_object_type(context, object_type)
+                {
+                    if is_better_evaluation(&evaluation, best.as_ref()) {
+                        best = Some(evaluation);
+                    }
+                }
+            }
+            best
+        }
+    }
+}
+
+fn evaluate_traditional_case_notion_for_object_type(
+    context: &CaseNotionContext,
+    object_type: &str,
+) -> Option<CaseNotionEvaluation> {
+    let case_notion =
+        traditional_case_notion_for_ot(context.object_identifiers(), object_type.to_string());
+
+    if case_notion.is_empty() {
+        return None;
+    }
+
+    let measures = calculate_measures(
+        &case_notion,
+        context.event_identifiers(),
+        context.object_identifiers(),
+        context.arches(),
+        context.total_number_of_objects(),
+        context.total_number_of_events(),
+    );
+    let total_score = average_score(&measures);
+    let f1_score = f1_from_measures(&measures);
+
+    Some(CaseNotionEvaluation {
+        object_type: Some(object_type.to_string()),
+        measures,
+        total_score,
+        f1_score,
+        case_notion,
+    })
 }

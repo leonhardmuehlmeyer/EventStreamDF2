@@ -110,7 +110,9 @@ pub async fn post_ocel_binary(mut multipart: Multipart) -> impl IntoResponse {
                 println!("· file bytes: {}", data.len());
                 file_bytes = Some(data);
             }
-            other => println!("⚠️ Unknown form field: {other}"),
+            _other => {
+                // println!("⚠️ Unknown form field: {_other}");
+            }
         }
     }
 
