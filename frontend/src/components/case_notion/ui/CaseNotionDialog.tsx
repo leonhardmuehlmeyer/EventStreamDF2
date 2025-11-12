@@ -115,7 +115,7 @@ const CaseNotionDialog = ({ fileId, fileName }: CaseNotionDialogProps) => {
                         </div>
                         <p className="font-bold mt-6">Measures</p>
                         {data && data.measures && data.measures.length > 0 && (
-                            <div className="mt-2 overflow-auto max-h-[800px]">
+                            <div className="mt-2 overflow-auto max-h-[400px]">
                                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                                         <tr>
