@@ -12,4 +12,3 @@ pub fn create_routes() -> Router {
 
     Router::new().nest("/v1", v1::router()).layer(cors)
 }
-

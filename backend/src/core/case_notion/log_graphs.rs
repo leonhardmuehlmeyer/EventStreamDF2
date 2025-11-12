@@ -1,20 +1,23 @@
 use process_mining::OCEL;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashSet;
 
-#[derive(Serialize)]
-struct LogGraphTypeLevel {
-    event_types: Vec<String>,
-    object_types: Vec<String>,
-    arcs: Vec<ArcEntry>,
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct LogGraphTypeLevel {
+    pub(crate) event_types: Vec<String>,
+    pub(crate) object_types: Vec<String>,
+    pub(crate) arcs: Vec<ArcEntry>,
+    pub(crate) deselected_event_types: Vec<String>,
+    pub(crate) deselected_object_types: Vec<String>,
+    pub(crate) deselected_arcs: Vec<ArcEntry>,
 }
 
-#[derive(Serialize)]
-struct ArcEntry {
-    event_type: String,
-    object_type: String,
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) struct ArcEntry {
+    pub(crate) source_type: String,
+    pub(crate) target_type: String,
 }
 
 /// Build a type-level log graph representation of an [`OCEL`].
@@ -28,7 +31,8 @@ struct ArcEntry {
 /// The output JSON has three sections:
 /// - `event_types`: list of event type names
 /// - `object_types`: list of object type names
-/// - `arcs`: list of `{ event_type, object_type }` pairs
+/// - `arcs`: list of `{ source_type, target_type }` pairs where `source_type` is an event/object
+///   type and `target_type` is an event/object type
 ///
 /// # Example JSON output
 ///
@@ -44,11 +48,11 @@ struct ArcEntry {
 ///     "Truck"
 ///   ],
 ///   "arcs": [
-///     { "event_type": "Depart", "object_type": "Truck" },
-///     { "event_type": "Depart", "object_type": "Container" },
-///     { "event_type": "Load Truck", "object_type": "Container" },
-///     { "event_type": "Load Truck", "object_type": "Truck" },
-///     { "event_type": "Weigh", "object_type": "Container" }
+///     { "source_type": "Depart", "target_type": "Truck" },
+///     { "source_type": "Depart", "target_type": "Container" },
+///     { "source_type": "Load Truck", "target_type": "Container" },
+///     { "source_type": "Load Truck", "target_type": "Truck" },
+///     { "source_type": "Weigh", "target_type": "Container" }
 ///   ]
 /// }
 /// ```
@@ -85,16 +89,19 @@ pub fn build_log_graph_type_level(log: &OCEL) -> Value {
 
     let arcs: Vec<ArcEntry> = arcs_set
         .into_iter()
-        .map(|(event_type, object_type)| ArcEntry {
-            event_type,
-            object_type,
+        .map(|(source_type, target_type)| ArcEntry {
+            source_type,
+            target_type,
         })
         .collect();
 
     let graph = LogGraphTypeLevel {
-        event_types: event_types,
-        object_types: object_types,
+        event_types,
+        object_types,
         arcs,
+        deselected_event_types: Vec::new(),
+        deselected_object_types: Vec::new(),
+        deselected_arcs: Vec::new(),
     };
 
     serde_json::to_value(&graph).unwrap()

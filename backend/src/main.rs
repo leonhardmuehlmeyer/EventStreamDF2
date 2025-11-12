@@ -2,10 +2,14 @@ mod core;
 mod handlers;
 mod models;
 mod routes;
+mod traits;
 
 use anyhow::Result;
 use core::struct_converters::ocel_1_ocel_2_converter::convert_file;
 use std::path::Path;
+use tracing_subscriber::filter::EnvFilter;
+use tracing_subscriber::fmt;
+use tracing_subscriber::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -17,6 +21,15 @@ async fn main() -> Result<()> {
         println!("Wrote: {}", out_path);
         return Ok(()); // done
     }
+
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug"));
+
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(filter)
+        .init();
+
+    log::debug!("Starting server...");
 
     // No args: start the HTTP server
     let app = routes::create_routes();

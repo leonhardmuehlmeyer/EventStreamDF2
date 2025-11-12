@@ -1,5 +1,6 @@
 // Legacy metrics helpers are still useful ad-hoc, but not all are invoked via the HTTP API.
 #![allow(dead_code)]
+use crate::core::case_notion::main::CaseMeasure;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +35,101 @@ struct RuntimeCaseNotion {
 #[derive(Serialize, Deserialize, Debug)]
 struct Results {
     case_notions: Vec<RuntimeCaseNotion>,
+}
+
+pub(crate) fn measure_value(measures: &[CaseMeasure], target: &str) -> Option<f64> {
+    measures.iter().find(|m| m.name == target).map(|m| m.value)
+}
+
+pub fn calculate_measures(
+    case_notion: &FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)>,
+    event_identifiers: &FxHashMap<
+        String,
+        (
+            String,
+            BTreeSet<String>,
+            FxHashMap<String, BTreeSet<String>>,
+        ),
+    >,
+    object_identifiers: &FxHashMap<String, (String, Vec<String>)>,
+    arches: &FxHashSet<(String, String)>,
+    total_number_of_objects: usize,
+    total_number_of_events: usize,
+) -> Vec<CaseMeasure> {
+    let normal_simplicity = normal_simplicity_of_case_notion(
+        case_notion,
+        total_number_of_events,
+        total_number_of_objects,
+    );
+    let extended_simplicity = extended_simplicity_of_case_notion(
+        case_notion,
+        total_number_of_events,
+        total_number_of_objects,
+        0.6,
+        20,
+    );
+    let absolute_simplicity = absolute_simplicity_of_case_notion(case_notion, 0.8, 10);
+    let correctness = correctness_of_case_notion(
+        case_notion,
+        arches,
+        total_number_of_events,
+        total_number_of_objects,
+    );
+    let fuzzy_homogeneity =
+        fuzzy_homogeneity_of_case_notion(case_notion, event_identifiers, object_identifiers);
+    let fuzzy_homogeneity_v2 =
+        fuzzy_homogeneity_of_case_notion_v2(case_notion, event_identifiers, object_identifiers);
+    let strict_homogeneity =
+        strict_homogeneity_of_case_notion(case_notion, event_identifiers, object_identifiers);
+
+    vec![
+        CaseMeasure {
+            name: "Normal Simplicity".to_string(),
+            value: normal_simplicity,
+        },
+        CaseMeasure {
+            name: "Extended Simplicity".to_string(),
+            value: extended_simplicity,
+        },
+        CaseMeasure {
+            name: "Absolute Simplicity".to_string(),
+            value: absolute_simplicity,
+        },
+        CaseMeasure {
+            name: "Correctness".to_string(),
+            value: correctness,
+        },
+        CaseMeasure {
+            name: "Fuzzy Homogeneity".to_string(),
+            value: fuzzy_homogeneity,
+        },
+        CaseMeasure {
+            name: "Fuzzy Homogeneity V2".to_string(),
+            value: fuzzy_homogeneity_v2,
+        },
+        CaseMeasure {
+            name: "Strict Homogeneity".to_string(),
+            value: strict_homogeneity,
+        },
+    ]
+}
+
+pub fn average_score(measures: &[CaseMeasure]) -> f64 {
+    if measures.is_empty() {
+        0.0
+    } else {
+        measures.iter().map(|m| m.value).sum::<f64>() / measures.len() as f64
+    }
+}
+
+pub(crate) fn f1_from_measures(measures: &[CaseMeasure]) -> Option<f64> {
+    let simplicity = measure_value(measures, "Normal Simplicity")?;
+    let correctness = measure_value(measures, "Correctness")?;
+    if simplicity + correctness > 0.0 {
+        Some((2.0 * simplicity * correctness) / (simplicity + correctness))
+    } else {
+        Some(0.0)
+    }
 }
 
 /*

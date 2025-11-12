@@ -9,10 +9,17 @@ import ObjectEventGraphNode from '~/components/explore/file/ObjectEventGraphNode
 import OcelFileNode from '~/components/explore/file/OcelFileNode';
 import OcptFileNode from '~/components/explore/file/OcptFileNode';
 import FileSelectionDialog from '~/components/explore/file/ui/FileSelectionDialog';
+<<<<<<< HEAD
 import ObjectEventGraphMinerNode from '~/components/explore/miner/ObjectEventGraphMinerNode';
 import OcelMinerNode from '~/components/explore/miner/OcelMinerNode';
 import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
 import EventGraphVisualizationNode from '~/components/explore/visualization/EventGraphVisualizationNode';
+=======
+import OcelMinerNode from '~/components/explore/miner/OcelMinerNode';
+import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
+import EventGraphVisualizationNode from '~/components/explore/visualization/EventGraphVisualizationNode';
+import HistVisualizationNode from '~/components/explore/visualization/HistVisualizationNode';
+>>>>>>> main
 import OcptVisualizationNode from '~/components/explore/visualization/OcptVisualizationNode';
 import { useExploreEventHandlers } from '~/hooks/useExploreEventHandlers';
 import { useExploreFlowStore } from '~/stores/exploreStore';
@@ -30,8 +37,12 @@ const nodeTypes = {
     ocptFileNode: OcptFileNode,
     eventGraphVisualizationNode: EventGraphVisualizationNode,
     ocelMinerNode: OcelMinerNode,
+<<<<<<< HEAD
     objectEventGraphNode: ObjectEventGraphNode,
     objectEventGraphMinerNode: ObjectEventGraphMinerNode,
+=======
+    histVisualizationNode: HistVisualizationNode,
+>>>>>>> main
 };
 
 const Explore: React.FC = () => {
