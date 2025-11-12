@@ -5,11 +5,16 @@ use crate::core::event_object_frequencies::{
 use crate::models::ocel::OCEL;
 use crate::traits::import_export::ImportableFromPath;
 use axum::{
-    extract::Json as AxumJson, extract::Path as AxumPath, http::StatusCode, response::IntoResponse,
+    extract::Path as AxumPath,
+    http::StatusCode,
+    response::IntoResponse,
+    Json as AxumJson,
 };
+use tokio::fs as tokio_fs;
+use uuid::Uuid;
 
-/// GET /v1/event_object_frequencies/:file_id
-/// -> loads ./temp/ocpt_{file_id}.json and ./temp/ocel_{file_id}.json
+/// GET /v1/event_object_frequencies/histogram/:file_id
+/// Returns: JSON object containing event-object frequency histograms
 pub async fn get_event_object_frequencies(
     AxumPath(file_id): AxumPath<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
@@ -20,9 +25,9 @@ pub async fn get_event_object_frequencies(
     Ok(axum::Json(histogram))
 }
 
-/// POST /v1/ocel_filter/:file_id
+/// POST /v1/event_object_frequencies/histogram_filter/:file_id
 /// Body: JSON following the `SelectionPayload` scheme
-/// Returns: array of filtered OCELs
+/// Returns: array of ids, each corresonding to one stored OCEL per provided filter mask
 pub async fn post_ocel_filter(
     AxumPath(ocel_file_id): AxumPath<String>,
     AxumJson(selection_json): AxumJson<serde_json::Value>,
@@ -40,6 +45,31 @@ pub async fn post_ocel_filter(
         }
     };
 
+    let mut ids = Vec::new();
+
+    for ocel in &filtered_ocels {
+        let export_id = Uuid::new_v4().to_string();
+        let filename = format!("./temp/ocel_v2_{}.json", &export_id);
+
+        let data = serde_json::to_string_pretty(ocel).map_err(|err| {
+            eprintln!("serialize filtered OCEL failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize OCELs".to_string(),
+            )
+        })?;
+
+        tokio_fs::write(&filename, data).await.map_err(|err| {
+            eprintln!("write case notion OCELs failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to persist case notion OCELs".to_string(),
+            )
+        })?;
+
+        ids.push(export_id);
+    }
+
     // 3. Return JSON array of filtered OCELs
-    Ok(axum::Json(filtered_ocels))
+    Ok(AxumJson(ids))
 }

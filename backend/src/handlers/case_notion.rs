@@ -5,7 +5,7 @@ use crate::core::case_notion::connected_component::connected_components_notion;
 use crate::core::case_notion::generic::{build_case, generic_case_notion};
 use crate::core::case_notion::log_graphs::build_log_graph_type_level;
 use crate::core::case_notion::main::{CaseMeasure, CaseNotionContext, CaseNotionEvaluation};
-use crate::core::case_notion::measures::{average_score, calculate_measures, f1_from_measures};
+use crate::core::case_notion::measures::calculate_measures;
 use crate::core::case_notion::traditional::{
     traditional_case_notion, traditional_case_notion_type_level,
 };
@@ -18,6 +18,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -39,8 +40,6 @@ struct CaseNotionResponse {
     source_ocel_file: String,
     object_type: Option<String>,
     measures: Vec<CaseMeasure>,
-    total_score: f64,
-    f1_score: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     type_level_graph: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -218,8 +217,6 @@ struct TraditionalTypeLevelResponse {
     case_notion: &'static str,
     object_type: String,
     measures: Vec<CaseMeasure>,
-    total_score: f64,
-    f1_score: Option<f64>,
     graph: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     case_notion_file_id: Option<String>,
@@ -390,8 +387,6 @@ pub async fn get_advanced_case_notion(
         source_ocel_file: path,
         object_type: evaluation.object_type.clone(),
         measures: evaluation.measures.clone(),
-        total_score: evaluation.total_score,
-        f1_score: evaluation.f1_score,
         type_level_graph: Some(type_level_graph),
         export_id: None,
         saved_as: None,
@@ -450,16 +445,7 @@ pub async fn get_connected_components_case_notion(
         context.total_number_of_objects(),
         context.total_number_of_events(),
     );
-    let total_score = average_score(&measures);
-    let f1_score = f1_from_measures(&measures);
-
-    let evaluation = CaseNotionEvaluation {
-        object_type: None,
-        measures,
-        total_score,
-        f1_score,
-        case_notion,
-    };
+    let evaluation = CaseNotionEvaluation::new(None, measures, case_notion);
 
     let type_level_graph = build_log_graph_type_level(&ocel);
 
@@ -483,8 +469,6 @@ pub async fn get_connected_components_case_notion(
         source_ocel_file: path,
         object_type: evaluation.object_type.clone(),
         measures: evaluation.measures.clone(),
-        total_score: evaluation.total_score,
-        f1_score: evaluation.f1_score,
         type_level_graph: Some(type_level_graph),
         export_id: None,
         saved_as: None,
@@ -574,8 +558,6 @@ pub async fn get_traditional_case_notion(
         case_notion: CaseKind::Traditional.label(),
         object_type,
         measures: evaluation.measures.clone(),
-        total_score: evaluation.total_score,
-        f1_score: evaluation.f1_score,
         graph: partitioned_graph,
         case_notion_file_id: Some(case_notion_file_id),
     };
@@ -604,12 +586,11 @@ pub async fn post_generic_case_notion(
         *context.total_number_of_objects_ref(),
         *context.total_number_of_events_ref(),
     );
-    let total_score = average_score(&measures);
-    let f1_score = f1_from_measures(&measures);
+    let evaluation = CaseNotionEvaluation::new(None, measures, case_notion);
 
-    log::debug!("measures: {:?}", measures);
+    log::debug!("measures: {:?}", &evaluation.measures);
 
-    let cases: Vec<RawCaseNotionEntry> = case_notion.iter().cloned().collect();
+    let cases: Vec<RawCaseNotionEntry> = evaluation.case_notion.iter().cloned().collect();
     let case_notion_file_id = match persist_case_notion(
         &cases,
         &file_id,
@@ -628,9 +609,7 @@ pub async fn post_generic_case_notion(
         case_notion_file_id,
         source_ocel_file: file_id.clone(),
         object_type: None,
-        measures,
-        total_score,
-        f1_score,
+        measures: evaluation.measures.clone(),
         type_level_graph: None,
         export_id: None,
         saved_as: None,
@@ -676,32 +655,32 @@ pub async fn get_case_ocel(Path(case_notion_file_id): Path<String>) -> impl Into
         .map(|object| (object.id.as_str(), &object.id))
         .collect();
 
-    let mut case_ocels = Vec::with_capacity(case_notion.len());
-
-    for (event_ids, object_ids, _) in &case_notion {
-        let mut event_refs: FxHashSet<&String> = FxHashSet::default();
-        for event_id in event_ids {
-            if let Some(id_ref) = event_id_refs.get(event_id.as_str()) {
-                event_refs.insert(*id_ref);
+    let case_ocels: Vec<OCEL> = case_notion
+        .par_iter()
+        .map(|(event_ids, object_ids, _)| {
+            let mut event_refs: FxHashSet<&String> = FxHashSet::default();
+            for event_id in event_ids {
+                if let Some(id_ref) = event_id_refs.get(event_id.as_str()) {
+                    event_refs.insert(*id_ref);
+                }
             }
-        }
 
-        let mut object_refs: FxHashSet<&String> = FxHashSet::default();
-        for object_id in object_ids {
-            if let Some(id_ref) = object_id_refs.get(object_id.as_str()) {
-                object_refs.insert(*id_ref);
+            let mut object_refs: FxHashSet<&String> = FxHashSet::default();
+            for object_id in object_ids {
+                if let Some(id_ref) = object_id_refs.get(object_id.as_str()) {
+                    object_refs.insert(*id_ref);
+                }
             }
-        }
 
-        let case_ocel = build_case(
-            &ocel,
-            &event_refs,
-            &object_refs,
-            &event_lookup,
-            &object_lookup,
-        );
-        case_ocels.push(case_ocel);
-    }
+            build_case(
+                &ocel,
+                &event_refs,
+                &object_refs,
+                &event_lookup,
+                &object_lookup,
+            )
+        })
+        .collect();
     let object_type = match case_kind {
         CaseKind::Advanced | CaseKind::Traditional => persisted_object_type,
         CaseKind::ConnectedComponents | CaseKind::Generic => None,

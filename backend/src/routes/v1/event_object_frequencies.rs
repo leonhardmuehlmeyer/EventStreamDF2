@@ -7,5 +7,5 @@ use axum::{
 pub fn router() -> Router {
     Router::new()
         .route("/histogram/{file_id}", get(get_event_object_frequencies))
-        .route("/ocel_filter/{file_id}", post(post_ocel_filter))
+        .route("/histogram_filter/{file_id}", post(post_ocel_filter))
 }

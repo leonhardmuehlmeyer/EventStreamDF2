@@ -11,6 +11,7 @@ Command to check if any licenses are not allowed (allowed licenses need to be ad
 
 cargo deny check licenses
 ```
+
 ## 🚀 How to Run the Backend Server
 
 ### 1. Prerequisites
@@ -25,6 +26,7 @@ cargo deny check licenses
 cd backend
 cargo run
 ```
+
 The server will start on:
 
 http://localhost:3000
@@ -65,4 +67,15 @@ curl "http://localhost:3000/v1/case_notion/advanced/<file_id>?object_type=<objec
 curl "http://localhost:3000/v1/case_notion/advanced/<file_id>?object_type=default"
 
 curl "http://localhost:3000/v1/case_notion/case_ocel/<case_notion_file_id>"
+
+```
+
+### Histogram (filtering curl)
+
+```bash
+
+curl "http://localhost:3000/v1/event_object_frequencies/histogram/<file_id>"
+
+curl "http://localhost:3000/v1/event_object_frequencies/histogram_filter/<file_id><JSON>"
+
 ```
