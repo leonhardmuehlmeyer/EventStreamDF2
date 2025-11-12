@@ -15,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub trait OCELUtils {
     fn detect_diverging_object_types(&self) -> FxHashMap<String, FxHashSet<String>>;
     fn get_related_object_types_for_activity(&self, activity: &String) -> FxHashSet<String>;
+    // if more than one pattern is to be detected, return as tuple for better efficiency
     fn get_interaction_patterns(&self) -> (
         FxHashMap<String, FxHashSet<String>>, //divergence
         FxHashMap<String, FxHashSet<String>>, //convergence
@@ -31,21 +32,13 @@ impl OCELUtils for OCEL {
         let unique_activities: FxHashSet<String> =
             self.event_types.iter().map(|e| e.name.clone()).collect();
 
-        let event_identifiers =
-            build_event_identifiers(&self.events, &obj_id_to_type, &unique_object_types);
+        let event_identifiers = build_event_identifiers(&self.events, &obj_id_to_type, &unique_object_types);
 
-        let cleaned_event_identifiers: FxHashMap<String, (String, BTreeSet<String>)> =
-            event_identifiers
-                .iter()
-                .map(|(id, (activity, objects, _))| {
-                    (id.clone(), (activity.clone(), objects.clone()))
-                })
-                .collect();
+        let mut arcs: FxHashSet<(String, String)> = FxHashSet::default();
 
-        let mut arches: FxHashSet<(String, String)> = FxHashSet::default();
-        for (event_id, (_, object_ids)) in &cleaned_event_identifiers {
+        for (event_id, (_, object_ids, _)) in &event_identifiers {
             for object_id in object_ids {
-                arches.insert((event_id.clone(), object_id.clone()));
+                arcs.insert((event_id.clone(), object_id.clone()));
             }
         }
 
@@ -227,7 +220,7 @@ pub fn build_event_identifiers(
 
         // Populate sets
         for rel in &event.relationships {
-            let obj_id = rel.object_id.clone();
+            let obj_id: String = rel.object_id.clone();
             all_objects.insert(obj_id.clone());
             if let Some(obj_type) = map_obj_id_to_type.get(&obj_id) {
                 // Get the set for this type and insert the object ID
