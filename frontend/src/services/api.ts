@@ -82,3 +82,8 @@ export const getConformance = async (fileId1: string, fileId2: string) => {
     console.log(response);
     return response.data;
 };
+
+export const getOcelObjectTypes = async (fileId: string) => {
+    const response = await api.get(`v1/objects/ocel/types/${fileId}`);
+    return response.data;
+};

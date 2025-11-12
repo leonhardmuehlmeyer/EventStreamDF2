@@ -19,7 +19,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '~/components/ui/select';
-import { getAdvancedCN, getConnectedComponentsCN, getTraditionalCN } from '~/services/api';
+import { getAdvancedCN, getConnectedComponentsCN, getOcelObjectTypes, getTraditionalCN } from '~/services/api';
 
 interface CaseNotionDialogProps {
     fileId: string | null;
@@ -56,6 +56,8 @@ const CaseNotionDialog = ({ fileId, fileName }: CaseNotionDialogProps) => {
     });
 
     const handleMineClick = () => {
+        if (fileId) console.log(getOcelObjectTypes(fileId));
+
         if (selectedAlgorithm) {
             mutate(selectedAlgorithm);
         } else {
