@@ -15,12 +15,14 @@ import { HistogramChart } from '~/components/HistogramChart';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useSetFilteredHistogramMutation } from '~/services/mutation';
 import { useGetHistogram } from '~/services/queries';
+import { BaseExploreNodeAsset } from '~/types/explore';
 import '~/styles/hist-viz.css';
 import type { HistogramEntry } from '~/types';
 
 export default function HistViz() {
     const [sortMode, setSortMode] = useState<'name' | 'bins' | 'random'>('bins');
-    const { fileId } = useParams<{ fileId: string }>();
+    const { nodeId } = useParams<{ nodeId: string }>();
+    const [fileId, setFileId] = useState<string | undefined>(undefined);
     const { data } = useGetHistogram(fileId);
     const { mutate: setFilteredHistogram } = useSetFilteredHistogramMutation();
 
@@ -39,8 +41,21 @@ export default function HistViz() {
     const [isEditing, setIsEditing] = useState(true);
     // -----------------------------
     const { getNode } = useExploreFlowStore();
+    const node = nodeId ? getNode(nodeId) : undefined;
+
+    // Obtain the fileId from the input asset
+    useMemo(() => {
+        if (node) {
+            const inputFile = node.data.assets.find((asset) => asset.io === 'input');
+            setFileId(inputFile?.id);
+        } else {
+            setFileId(undefined);
+        }
+    }, [node]);
 
     useEffect(() => {
+        if (!data) return;
+
         try {
             // Populate filter options from the data received from backend
             const eventTypes = new Set<string>();
@@ -221,7 +236,27 @@ export default function HistViz() {
             ],
         };
         console.log('Submitting to backend:', JSON.stringify(finalPayload, null, 2));
-        setFilteredHistogram({ fileId: fileId!, payload: finalPayload });
+        setFilteredHistogram(
+            { fileId: fileId!, payload: finalPayload },
+            {
+                onSuccess: (data) => {
+                    console.log(data);
+
+                    const newAsset: BaseExploreNodeAsset = {
+                        id: data[0],
+                        io: 'output',
+                        origin: 'mined',
+                        type: 'ocelFile',
+                        name: `ocel_${data[0]}`,
+                    };
+
+                    if (!node || !nodeId) return;
+
+                    const updatedAssets = [...node.data.assets, newAsset];
+                    node?.data.onDataChange(nodeId, { assets: updatedAssets });
+                },
+            }
+        );
     };
 
     return (
