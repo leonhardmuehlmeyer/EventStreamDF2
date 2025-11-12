@@ -10,7 +10,6 @@ pub use process_mining::ocel::ocel_struct::{
     OCEL, OCELAttributeType, OCELAttributeValue, OCELEvent, OCELEventAttribute, OCELObject,
     OCELObjectAttribute, OCELRelationship, OCELType, OCELTypeAttribute,
 };
-pub use process_mining::ocel::linked_ocel::index_linked_ocel::{EventIndex, ObjectIndex};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -413,6 +412,7 @@ pub fn build_object_identifiers(
 */
 pub fn objects_to_id_list(objects: &[OCELObject]) -> Vec<String> {
     objects.iter().map(|object| object.id.clone()).collect()
+}
 
 /// Implementation of [`ImportableFromPath`] for [`OCEL`].
 ///

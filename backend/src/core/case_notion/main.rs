@@ -1,18 +1,9 @@
 // Handler layer only uses a subset of these helpers; keep the rest available without warnings.
 #![allow(dead_code)]
-use crate::core::case_notion::advanced::advanced_case_notion_for_ot;
-use crate::core::case_notion::connected_component::connected_components_notion;
-use crate::core::case_notion::measures::{
-    absolute_simplicity_of_case_notion, correctness_of_case_notion,
-    extended_simplicity_of_case_notion, fuzzy_homogeneity_of_case_notion,
-    fuzzy_homogeneity_of_case_notion_v2, normal_simplicity_of_case_notion,
-    strict_homogeneity_of_case_notion,
-};
-use crate::core::case_notion::traditional::traditional_case_notion_for_ot;
 use crate::models::ocel::{
     build_event_identifiers, build_object_identifiers, map_object_id_to_type,
 };
-
+use crate::models::ocel::OCELUtils;
 use process_mining::OCEL;
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
