@@ -6,11 +6,11 @@ pub fn ocim_init(log: &OCEL) -> OCPT {
     let local_data = LocalData::new(vec![log.clone()], None);
     let global_data = GlobalData::new(vec![log.clone()]);
     
-    let root_node: OCPTNode = ocim_recursive(local_data, global_data);
+    let root_node: OCPTNode = ocim_recursive(local_data, &global_data);
     OCPT::new(root_node)
 }
 
-fn ocim_recursive(local_data: LocalData, global_data: GlobalData) -> OCPTNode {
+fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     // --- Helper stubs you will replace with real implementations ---
     //
     // These are intentionally simple placeholders so this function compiles
