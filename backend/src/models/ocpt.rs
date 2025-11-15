@@ -1,6 +1,11 @@
 #![allow(dead_code)] // helper functions which didn't get used yet in the code
+use crate::traits::import_export::{ExportableToPath, ImportableFromPath};
+use async_trait::async_trait;
+use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::{HashMap, HashSet};
+use tokio::fs;
 use uuid::Uuid;
 
 /////////////////// backend struct copied from https://github.com/aarkue/rust4pm/process_mining/src/object_centric/ocpt/object_centric_process_tree_struct.rs ////////////////
@@ -1442,3 +1447,65 @@ pub struct TreeNode {
 }
 
 pub type ProcessForest = Vec<TreeNode>;
+
+/// Implementation of [`ImportableFromPath`] for [`OCPT`].
+///
+/// This implementation constructs the file path using a standard naming pattern:
+/// `./temp/ocpt_<file_id>.json`, then imports and deserializes the file using
+/// [`ImportableFromPath::from_json_file`].
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let ocpt = OCPT::import_from_path("18d356df-2be1-4af9-8618-debe98a0575b").await?;
+/// ```
+#[async_trait]
+impl ImportableFromPath for OCPT {
+    async fn import_from_path(file_id: &str) -> Result<Self, (StatusCode, String)> {
+        let path = format!("./temp/ocpt_{}.json", file_id);
+        Self::from_json_file(&path).await
+    }
+}
+
+/// Implementation of [`ExportableToPath`] for [`OCPT`].
+///
+/// This implementation generates a unique file ID, constructs the file path
+/// using the pattern `./temp/ocpt_<file_id>.json`, serializes the OCPT
+/// instance to JSON, and then asynchronously writes it to the file system.
+///
+/// # Returns
+/// - `Ok(String)` containing the generated `file_id` if the export is successful.
+/// - `Err((StatusCode, String))` if serialization or file I/O fails.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let ocpt: OCPT = ...; // construct or import an OCPT
+/// let exported_file_id = ocpt.export_to_path().await?;
+/// println!("OCPT exported with ID: {}", exported_file_id);
+/// ```
+#[async_trait]
+impl ExportableToPath for OCPT {
+    async fn export_to_path(&self) -> Result<String, (StatusCode, String)> {
+        let export_id = Uuid::new_v4().to_string();
+        let filename = format!("./temp/ocpt_{}.json", &export_id);
+
+        let data = serde_json::to_string_pretty(self).map_err(|err| {
+            eprintln!("serialize OCPT failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize OCPT".to_string(),
+            )
+        })?;
+
+        fs::write(&filename, data).await.map_err(|err| {
+            eprintln!("write OCPT failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to persist OCPT".to_string(),
+            )
+        })?;
+
+        Ok(export_id)
+    }
+}

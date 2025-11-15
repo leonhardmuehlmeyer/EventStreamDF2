@@ -1,5 +1,4 @@
-use process_mining::object_centric::object_centric_dfg_struct::OCDirectlyFollowsGraph;
-use crate::traits::import_export::ImportableFromPath;
+use crate::traits::import_export::{ExportableToPath, ImportableFromPath};
 use async_trait::async_trait;
 use axum::http::StatusCode;
 #[allow(unused_imports)] // probably used in the future
@@ -11,8 +10,12 @@ pub use process_mining::ocel::ocel_struct::{
     OCEL, OCELAttributeType, OCELAttributeValue, OCELEvent, OCELEventAttribute, OCELObject,
     OCELObjectAttribute, OCELRelationship, OCELType, OCELTypeAttribute,
 };
+use process_mining::object_centric::object_centric_dfg_struct::OCDirectlyFollowsGraph;
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde_json;
 use std::collections::{BTreeMap, BTreeSet};
+use tokio::fs;
+use uuid::Uuid;
 
 
 
@@ -664,14 +667,55 @@ impl ImportableFromPath for OCEL {
     }
 }
 
+/// Implementation of [`ExportableToPath`] for [`OCEL`].
+///
+/// This implementation generates a unique file ID, constructs the file path
+/// using the pattern `./temp/ocel_v2_<file_id>.json`, serializes the OCEL
+/// instance to JSON, and then asynchronously writes it to the file system.
+///
+/// # Returns
+/// - `Ok(String)` containing the generated `file_id` if the export is successful.
+/// - `Err((StatusCode, String))` if serialization or file I/O fails.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let ocel = OCEL::import_from_path("ef34153a-ffff-401d-8a16-138b5733e63a").await?;
+/// let exported_file_id = ocel.export_to_path().await?;
+/// println!("OCEL exported with ID: {}", exported_file_id);
+/// ```
+#[async_trait]
+impl ExportableToPath for OCEL {
+    async fn export_to_path(&self) -> Result<String, (StatusCode, String)> {
+        let export_id = Uuid::new_v4().to_string();
+        let filename = format!("./temp/ocel_v2_{}.json", &export_id);
 
+        let data = serde_json::to_string_pretty(self).map_err(|err| {
+            eprintln!("serialize OCEL failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize OCEL".to_string(),
+            )
+        })?;
+
+        fs::write(&filename, data).await.map_err(|err| {
+            eprintln!("write OCEL failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to persist OCEL".to_string(),
+            )
+        })?;
+
+        Ok(export_id)
+    }
+}
 
 
 
 #[tokio::test]
 async fn test_interaction_patterns_and_divergence() {
     // Import OCEL from path
-    let ocel = match OCEL::import_from_path("7c614a32-892f-45d5-a908-0f25d565f8a4").await {
+    let ocel = match OCEL::import_from_path("ef34153a-ffff-401d-8a16-138b5733e63a").await {
         Ok(log) => log,
         Err((status, msg)) => {
             eprintln!("❌ Failed to import OCEL: {} - {}", status, msg);

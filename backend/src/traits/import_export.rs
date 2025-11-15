@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::io;
 
 /// A trait that defines asynchronous import functionality for types that can be
@@ -71,4 +72,60 @@ pub trait ImportableFromPath: Sized + DeserializeOwned {
     /// A deserialized instance of the implementing type, or an error tuple if
     /// reading/parsing fails.
     async fn import_from_path(file_id: &str) -> Result<Self, (StatusCode, String)>;
+}
+
+#[async_trait]
+pub trait ExportableToPath: Sized + Serialize + Send + Sync {
+    /// Exports an instance to a file path and returns a file identifier.
+    ///
+    /// Implementations of this function are responsible for:
+    /// 1. Generating a unique `file_id` (e.g., using UUIDs).
+    /// 2. Constructing the full file path where the object will be stored.
+    ///    The path logic can be specific to the type being exported.
+    /// 3. Serializing the instance to a format like JSON.
+    /// 4. Asynchronously writing the serialized content to the file.
+    /// 5. Returning the generated `file_id` on success.
+    ///
+    /// # Returns
+    /// - `Ok(String)` containing the `file_id` if the export is successful.
+    /// - `Err((StatusCode, String))` if serialization or file I/O fails.
+    async fn export_to_path(&self) -> Result<String, (StatusCode, String)>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::ocel::OCEL;
+    use crate::models::ocpt::OCPT;
+    use tokio;
+
+    #[tokio::test]
+    async fn test_ocel_import_export() {
+        let original_file_id = "ef34153a-ffff-401d-8a16-138b5733e63a";
+        let ocel = OCEL::import_from_path(original_file_id).await.unwrap();
+        let new_file_id = ocel.export_to_path().await.unwrap();
+
+        let original_path = format!("./temp/ocel_v2_{}.json", original_file_id);
+        let new_path = format!("./temp/ocel_v2_{}.json", new_file_id);
+
+        let original_metadata = tokio::fs::metadata(original_path).await.unwrap();
+        let new_metadata = tokio::fs::metadata(new_path).await.unwrap();
+
+        assert_eq!(original_metadata.len(), new_metadata.len());
+    }
+
+    #[tokio::test]
+    async fn test_ocpt_import_export() {
+        let original_file_id = "c34fd390-39c9-4dd1-b48c-c2376014619c";
+        let ocpt = OCPT::import_from_path(original_file_id).await.unwrap();
+        let new_file_id = ocpt.export_to_path().await.unwrap();
+
+        let original_path = format!("./temp/ocpt_{}.json", original_file_id);
+        let new_path = format!("./temp/ocpt_{}.json", new_file_id);
+
+        let original_metadata = tokio::fs::metadata(original_path).await.unwrap();
+        let new_metadata = tokio::fs::metadata(new_path).await.unwrap();
+
+        assert_eq!(original_metadata.len(), new_metadata.len());
+    }
 }
