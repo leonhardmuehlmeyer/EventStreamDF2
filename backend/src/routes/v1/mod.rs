@@ -16,6 +16,7 @@ pub fn router() -> Router {
             "/event_object_frequencies",
             event_object_frequencies::router(),
         )
-        .nest("/case_notion", crate::routes::v1::case_notion::router())
+        .nest("/case_notion", case_notion::router())
         .nest("/log_graphs", log_graphs::router())
+        .nest("/ocim", ocim::router())
 }
