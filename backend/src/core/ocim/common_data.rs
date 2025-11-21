@@ -4,13 +4,11 @@ use crate::models::dfg::OCDirectlyFollowsGraph;
 pub use process_mining::ocel::linked_ocel::index_linked_ocel::IndexLinkedOCEL;
 
 use crate::models::ocel::OCELUtils;
-use std::borrow::Cow;
-
 
 #[derive(Debug, Clone)]
 pub struct LocalData {
     pub oc_log_list: Vec<OCEL>,                // one per object type
-    pub alphabet: FxHashSet<String>,           // Σ
+    pub alphabet: Vec<String>,           // Σ
     pub object_types: FxHashSet<String>,       // types in current sublog
     pub object_set: FxHashSet<String>,         // objects in current sublog
     pub expected_objects: FxHashSet<String>,   // optionally narrowed
@@ -21,6 +19,7 @@ pub struct LocalData {
 #[derive(Debug, Clone)]
 pub struct GlobalData {
     pub oc_log_list: Vec<OCEL>,
+    // everything as: object type -> set of activities
     pub divergence: FxHashMap<String, FxHashSet<String>>,
     pub convergence: FxHashMap<String, FxHashSet<String>>,
     pub related: FxHashMap<String, FxHashSet<String>>,
@@ -63,7 +62,6 @@ impl LocalData {
 }
 
 impl GlobalData {
-    // what do we need the Vec for? -- INVESTIGATE --
     pub fn new(oc_log_list: Vec<OCEL>) -> Self {
         let (div, con, rel, defi) = oc_log_list[0].get_interaction_patterns();
         Self {

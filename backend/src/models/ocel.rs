@@ -215,11 +215,23 @@ impl OCELUtils for OCEL {
             });
         });
 
+        fn reverse_map(
+            map: &FxHashMap<String, FxHashSet<String>>,
+        ) -> FxHashMap<String, FxHashSet<String>> {
+            let mut reversed: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
+            for (key, values) in map {
+                for value in values {
+                    reversed.entry(value.clone()).or_default().insert(key.clone());
+                }
+            }
+            reversed
+        }
+
         return (
-            divergent_ev_type_per_ob_type,
-            convergent_ev_type_per_ob_type,
-            related_ev_type_per_ob_type,
-            deficient_ev_type_per_ob_type,
+            reverse_map(&divergent_ev_type_per_ob_type),
+            reverse_map(&convergent_ev_type_per_ob_type),
+            reverse_map(&related_ev_type_per_ob_type),
+            reverse_map(&deficient_ev_type_per_ob_type),
         );
     }
 

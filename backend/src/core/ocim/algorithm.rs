@@ -1,6 +1,8 @@
 use process_mining::OCEL;
 use crate::models::ocpt::{OCPTNode, OCPT};
-use crate::core::ocim::common_data::{LocalData, GlobalData};
+use crate::core::ocim::{
+    common_data::{LocalData, GlobalData},
+    basecase::basecase,};
 
 pub fn ocim_init(log: &OCEL) -> OCPT {
     let local_data = LocalData::new(vec![log.clone()], None);
@@ -39,17 +41,8 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
         return OCPTNode::new_leaf(Some("TAU_CASE_PLACEHOLDER".to_string()));
     }
 
-    // Base case: if alphabet size == 1 return BASECASE(L).
     if local_data.alphabet.len() == 1 {
-        // Real code: return BASECASE(local_data)
-        // For now, return a leaf for the single activity (or tau if none).
-        let single_activity = local_data
-            .alphabet
-            .iter()
-            .next()
-            .cloned()
-            .unwrap_or_else(|| "TAU".to_string());
-        return OCPTNode::new_leaf(Some(single_activity));
+        return basecase(local_data, global_data);
     }
 
     // Try to find a concurrent (or other) cut
