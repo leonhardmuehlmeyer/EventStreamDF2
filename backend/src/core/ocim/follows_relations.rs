@@ -153,4 +153,57 @@ impl<'a> OCGraphRelations<'a> {
             })
             .collect()
     }
+
+    /// Compute transitive closure per object type directly from the DFG maps.
+    /// Self-loops are included.
+    pub fn build_closure_from_dfgs(
+        dfgs: &FxHashMap<
+            String,
+            (
+                FxHashMap<(String, String), u32>,
+                FxHashMap<String, u32>,
+                FxHashMap<String, u32>,
+            ),
+        >,
+    ) -> FxHashMap<String, FxHashSet<(String, String)>> {
+        let mut result = FxHashMap::default();
+
+        for (ot, (edges, _, _)) in dfgs {
+            // collect nodes
+            let mut nodes: FxHashSet<String> = FxHashSet::default();
+            for (from, to) in edges.keys() {
+                nodes.insert(from.clone());
+                nodes.insert(to.clone());
+            }
+
+            // build adjacency list
+            let mut adj: FxHashMap<String, Vec<String>> = FxHashMap::default();
+            for (from, to) in edges.keys() {
+                adj.entry(from.clone())
+                    .or_default()
+                    .push(to.clone());
+            }
+
+            // Transitive closure using Floyd-Warshall style iteration with self-loops.
+            let mut closure: FxHashSet<(String, String)> = edges.keys().cloned().collect();
+            for node in &nodes {
+                closure.insert((node.clone(), node.clone()));
+            }
+
+            for k in &nodes {
+                for i in &nodes {
+                    for j in &nodes {
+                        if closure.contains(&(i.clone(), k.clone()))
+                            && closure.contains(&(k.clone(), j.clone()))
+                        {
+                            closure.insert((i.clone(), j.clone()));
+                        }
+                    }
+                }
+            }
+            result.insert(ot.clone(), closure);
+        }
+
+        result
+    }
 }

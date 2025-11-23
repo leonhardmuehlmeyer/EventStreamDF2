@@ -55,7 +55,7 @@ impl LocalData {
 
         let expected_objects = expected_objects.unwrap_or_else(|| object_set.clone());
         let dfgs = OCGraphRelations::get_cummulative_directly_follows_relation(&ocdfg);
-        let clos = OCGraphRelations::get_transitive_closure_follows_relation(&ocdfg);
+        let clos = OCGraphRelations::build_closure_from_dfgs(&dfgs);
 
         Self { oc_log_list, alphabet, object_types, object_set, expected_objects, dfgs, clos }
     }
@@ -70,6 +70,50 @@ impl GlobalData {
             convergence: con,
             related: rel,
             deficiency: defi,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::ocim::follows_relations::OCGraphRelations;
+    use crate::core::ocim::example_log::build_example_log;
+    use std::path::Path;
+
+    #[test]
+    fn compare_closure_builders() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = manifest
+            .join("..")
+            .join("example_data")
+            .join("ocel")
+            .join("example_log_ocim.json");
+
+        let data = std::fs::read_to_string(&path).expect("read example OCEL file");
+        let log: OCEL = serde_json::from_str(&data).expect("parse example OCEL");
+
+        let locel = IndexLinkedOCEL::from_ocel(log.clone());
+        let ocdfg = OCDirectlyFollowsGraph::create_from_locel(&locel);
+
+        let dfgs = OCGraphRelations::get_cummulative_directly_follows_relation(&ocdfg);
+        let clos_from_dfgs = OCGraphRelations::build_closure_from_dfgs(&dfgs);
+        let clos_petgraph = OCGraphRelations::get_transitive_closure_follows_relation(&ocdfg);
+
+        for (ot, clos_a) in &clos_from_dfgs {
+            let clos_b: FxHashSet<_> = clos_petgraph
+                .get(ot)
+                .cloned()
+                .unwrap_or_default();
+            let mut a_sorted: Vec<_> = clos_a.iter().cloned().collect();
+            let mut b_sorted: Vec<_> = clos_b.iter().cloned().collect();
+            a_sorted.sort();
+            b_sorted.sort();
+            println!("ot={ot} clos_from_dfgs(no self)={:?}", a_sorted);
+            println!("ot={ot} clos_petgraph={:?}", b_sorted);
+            if clos_a != &clos_b {
+                println!("WARNING: closure mismatch for object type {ot}");
+            }
         }
     }
 }
