@@ -5,6 +5,9 @@ use crate::core::ocim::{
     basecase::basecase,
     sequence_cut_detection::find_cut_sequence,
     log_splitting::split_log,
+    exclusive_cut_detection::find_cut_exclusive,
+    concurrent_cut_detection::find_cut_concurrent,
+    // loop_cut_detection::find_cut_loop,
 };
 
 pub fn ocim_init(log: &OCEL) -> OCPT {
@@ -85,7 +88,7 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
 pub fn find_strict_cut(local_data: &LocalData, global_data: &GlobalData) -> Option<(Vec<Vec<String>>, OCPTOperatorType)> {
     for check in [find_cut_sequence,
         // find_cut_exclusive, 
-        // find_cut_concurrent, 
+        find_cut_concurrent, 
         // find_cut_loop,
         ] 
     {
