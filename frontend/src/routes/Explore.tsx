@@ -35,6 +35,7 @@ const Explore: React.FC = () => {
 
     useMemo(() => {
         console.log(nodes);
+        console.log(nodes);
     }, [nodes]);
 
     return (

@@ -1,4 +1,5 @@
 import axios, { type AxiosResponse } from 'axios';
+import { CaseNotionApiResponse } from '~/types/case_notion.types';
 import { ExtendedFile } from '~/types/files.types';
 import { JSONSchema } from '~/types/ocpt/ocpt.types';
 
@@ -56,17 +57,17 @@ export const setFilteredHistogram = async (fileId: string, payload: any) => {
 };
 
 export const getTraditionalCN = async (fileId: string) => {
-    const response = await api.get(`/v1/objects/cn/traditional/${fileId}`);
+    const response = await api.get(`/v1/case_notion/traditional/${fileId}?object_type=${'orders'}`);
     return response.data;
 };
 
 export const getConnectedComponentsCN = async (fileId: string) => {
-    const response = await api.get(`/v1/objects/cn/connected_components/${fileId}`);
+    const response = await api.get(`/v1/case_notion/connected_components/${fileId}`);
     return response.data;
 };
 
 export const getAdvancedCN = async (fileId: string) => {
-    const response = await api.get(`/v1/objects/cn/advanced/${fileId}`);
+    const response = await api.get(`/v1/case_notion/advanced/${fileId}`);
     return response.data;
 };
 
@@ -84,5 +85,10 @@ export const deleteOcel = async (fileId: string) => {
 export const getConformance = async (fileId1: string, fileId2: string) => {
     const response = await api.get(`/v1/conformance/${fileId1}/${fileId2}`);
     console.log(response);
+    return response.data;
+};
+
+export const getOcelObjectTypes = async (fileId: string): Promise<CaseNotionApiResponse> => {
+    const response = await api.get(`v1/objects/ocel/types/${fileId}`);
     return response.data;
 };

@@ -1,6 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { getAdvancedCN, getConnectedComponentsCN, getHistogram, getOcpt, getTraditionalCN } from '~/services/api';
+import {
+    getAdvancedCN,
+    getConnectedComponentsCN,
+    getHistogram,
+    getOcelObjectTypes,
+    getOcpt,
+    getTraditionalCN,
+} from '~/services/api';
 import { getOcel } from '~/services/api';
+import { CaseNotionApiResponse } from '~/types/case_notion.types';
 
 export const useGetOcpt = (fileId: string | null, shouldFetch: boolean) => {
     return useQuery({
@@ -42,6 +50,15 @@ export const useGetAdvancedCN = (fileId: string | null) => {
     return useQuery({
         queryKey: ['advancedCN', fileId],
         queryFn: () => getAdvancedCN(fileId!),
+        enabled: Boolean(fileId),
+        refetchOnWindowFocus: false,
+    });
+};
+
+export const useGetOcelObjectTypes = (fileId: string | null) => {
+    return useQuery<CaseNotionApiResponse>({
+        queryKey: ['getOcelObjectTypes', fileId],
+        queryFn: () => getOcelObjectTypes(fileId!),
         enabled: Boolean(fileId),
         refetchOnWindowFocus: false,
     });
