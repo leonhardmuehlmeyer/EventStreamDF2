@@ -4,6 +4,7 @@ use crate::core::ocim::{
     common_data::{LocalData, GlobalData},
     basecase::basecase,
     sequence_cut_detection::find_cut_sequence,
+    log_splitting::split_log,
 };
 
 pub fn ocim_init(log: &OCEL) -> OCPT {
@@ -50,19 +51,6 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     // Try to find a strict cut
     if let Some((partition, operator)) = find_strict_cut(&local_data, global_data) {
         // A cut was found, now split the log and recurse.
-        // NOTE: split_log is not implemented. A stub is used to allow compilation.
-        
-        // This function should be in `log_splitting.rs` once implemented.
-        fn split_log(
-            _local_data: &LocalData,
-            _partition: Vec<Vec<String>>,
-            _operator: &OCPTOperatorType,
-            _global_data: &GlobalData,
-        ) -> Vec<LocalData> {
-            // STUB: Returns an empty vector because the real log splitting
-            // logic is not yet implemented.
-            vec![]
-        }
 
         let sublogs = split_log(&local_data, partition, &operator, global_data);
 
