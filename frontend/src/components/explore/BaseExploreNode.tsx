@@ -69,11 +69,14 @@ const BaseExploreNode = memo<BaseExploreNodeProps>(
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
                             {dropdownOptions.map((ddOpt, index) => {
+                                const IconComponent = ddOpt.icon ? getIconComponent(ddOpt.icon) : null;
                                 return (
                                     <DropdownMenuItem
                                         key={`${id}-${ddOpt.label}-${index}`}
                                         onClick={() => handleDropdownAction(ddOpt.action)}
+                                        className="flex items-center"
                                     >
+                                        {IconComponent && <IconComponent className="h-4 w-4" />}
                                         {ddOpt.label}
                                     </DropdownMenuItem>
                                 );

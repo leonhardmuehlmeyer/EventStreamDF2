@@ -15,7 +15,7 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
     const [fileName, setFileName] = useState<string>('');
 
     const hasMinedAsset = useMemo(() => {
-        return node.data.assets.some((asset) => asset.io === 'output' && asset.origin === 'mined');
+        return node.data.assets.some((asset) => asset.io === 'output');
     }, [node.data.assets]);
 
     const { isLoading, data } = useGetOcpt(fileId, !hasMinedAsset);

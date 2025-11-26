@@ -62,7 +62,7 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
                 <div>
                     <p>Input Files</p>
                     {assets.map((asset, index) => {
-                        if (asset.origin != 'mined') {
+                        if (asset.io === 'input') {
                             return (
                                 <div key={index} className="text-sm text-gray-600">
                                     {'📄'}
@@ -75,7 +75,7 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
                 <div>
                     <p>Output Files</p>
                     {assets.map((asset, index) => {
-                        if (asset.origin === 'mined') {
+                        if (asset.io === 'output') {
                             return (
                                 <div key={index} className="text-sm text-gray-600">
                                     {'⛏️'}

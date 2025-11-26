@@ -2,7 +2,11 @@ import type { Position } from '@xyflow/react';
 import type { ExploreNodeCategory, ExploreNodeType } from '~/types/explore/nodeTypesCategories';
 import type { AssetType } from '~/types/files.types';
 
-export type BaseExploreNodeDropdownActionType = 'openFileDialog' | 'changeSourceFile' | 'exportJson';
+export type BaseExploreNodeDropdownActionType =
+    | 'openFileDialog'
+    | 'changeSourceFile'
+    | 'exportJson'
+    | 'viewObjectEventGraph';
 
 export interface BaseExploreNodeHandleOption {
     position: Position;
@@ -12,6 +16,7 @@ export interface BaseExploreNodeHandleOption {
 export interface BaseExploreNodeDropdownOption {
     label: string;
     action: BaseExploreNodeDropdownActionType;
+    icon?: string;
 }
 
 export const BaseExploreNodeAssetOrigins = ['mined', 'preprocessed'] as const;
