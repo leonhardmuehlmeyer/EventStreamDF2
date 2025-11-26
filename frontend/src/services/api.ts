@@ -56,18 +56,24 @@ export const setFilteredHistogram = async (fileId: string, payload: any) => {
     return response.data;
 };
 
-export const getTraditionalCN = async (fileId: string) => {
-    const response = await api.get(`/v1/case_notion/traditional/${fileId}?object_type=${'orders'}`);
+export const getTraditionalCN = async (fileId: string, objectType: string, newFileId: string) => {
+    const response = await api.get(
+        `/v1/case_notion/traditional/${fileId}?object_type=${objectType}&case_notion_file_id=${newFileId}`
+    );
     return response.data;
 };
 
-export const getConnectedComponentsCN = async (fileId: string) => {
-    const response = await api.get(`/v1/case_notion/connected_components/${fileId}`);
+export const getConnectedComponentsCN = async (fileId: string, objectType: string, newFileId: string) => {
+    const response = await api.get(
+        `/v1/case_notion/connected_components/${fileId}?object_type=${objectType}&case_notion_file_id=${newFileId}`
+    );
     return response.data;
 };
 
-export const getAdvancedCN = async (fileId: string) => {
-    const response = await api.get(`/v1/case_notion/advanced/${fileId}`);
+export const getAdvancedCN = async (fileId: string, objectType: string, newFileId: string) => {
+    const response = await api.get(
+        `/v1/case_notion/advanced/${fileId}?object_type=${objectType}&case_notion_file_id=${newFileId}`
+    );
     return response.data;
 };
 
