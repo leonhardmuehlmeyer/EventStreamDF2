@@ -1,8 +1,10 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { Position } from '@xyflow/react';
+import { Pickaxe } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import BaseMinerNode from '~/components/explore/miner/BaseMinerNode';
-import { useGetOcpt } from '~/services/queries';
+import { useMineOcpt } from '~/services/queries';
 import {
     BaseExploreNodeAsset,
     BaseExploreNodeDropdownActionType,
@@ -13,20 +15,21 @@ import { MinerNode } from '~/types/explore/nodes';
 const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
     const [fileId, setFileId] = useState<null | string>(null);
     const [fileName, setFileName] = useState<string>('');
+    const [algorithm, setAlgorithm] = useState<string>('DF2');
 
     const hasMinedAsset = useMemo(() => {
         return node.data.assets.some((asset) => asset.io === 'output');
     }, [node.data.assets]);
 
-    const { isLoading, data } = useGetOcpt(fileId, !hasMinedAsset);
+    const { isLoading, data } = useMineOcpt(fileId, algorithm, !hasMinedAsset);
 
-    useMemo(() => {
+    useEffect(() => {
         const inputAsset = node.data.assets.find((asset) => asset.io === 'input');
         if (!inputAsset) return;
 
         setFileId(inputAsset.id);
         setFileName(inputAsset.name);
-    }, [node]);
+    }, [node.data.assets]);
 
     useEffect(() => {
         const outputAssets = node.data.assets.filter((asset) => asset.io === 'output');
@@ -76,6 +79,25 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         dropdownOptions.push({ label: 'Export JSON', action: 'exportJson' as const });
     }
 
+    const renderCustomActions = () => (
+        <div className="flex items-center">
+            <Select value={algorithm} onValueChange={setAlgorithm}>
+                <SelectTrigger
+                    className="flex items-center h-6 px-2 bg-gray-100 text-amber-600 hover:bg-gray-200 rounded-md w-auto justify-between gap-1"
+                    aria-label="Select mining algorithm"
+                >
+                    <Pickaxe className="h-3.5 w-3.5 mr-1 text-amber-500" />
+                    <SelectValue className="text-xs font-semibold" placeholder="Algorithm" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem className="text-xs text-amber-600 font-semibold" value="DF2">
+                        DF2
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+    );
+
     return (
         <BaseMinerNode
             {...node}
@@ -88,6 +110,7 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
             dropdownOptions={dropdownOptions}
             onDropdownAction={handleDropdownAction}
             isLoading={isLoading}
+            customActions={renderCustomActions()}
         />
     );
 });

@@ -98,3 +98,11 @@ export const getOcelObjectTypes = async (fileId: string): Promise<CaseNotionApiR
     const response = await api.get(`v1/objects/ocel/types/${fileId}`);
     return response.data;
 };
+
+export const mineOcpt = async (fileId: string, algorithm: string = 'DF2'): Promise<getOcptResult> => {
+    if (algorithm === 'DF2') {
+        const response = await api.get(`v1/ocpt/df2/${fileId}`);
+        return response.data;
+    }
+    throw new Error(`Algorithm ${algorithm} not supported`);
+};

@@ -6,6 +6,7 @@ import {
     getOcelObjectTypes,
     getOcpt,
     getTraditionalCN,
+    mineOcpt,
 } from '~/services/api';
 import { getOcel } from '~/services/api';
 import { CaseNotionApiResponse } from '~/types/case_notion.types';
@@ -69,6 +70,15 @@ export const useGetHistogram = (fileId: string | undefined) => {
         queryKey: ['getHistogram', fileId],
         queryFn: () => getHistogram(fileId!),
         enabled: Boolean(fileId),
+        refetchOnWindowFocus: false,
+    });
+};
+
+export const useMineOcpt = (fileId: string | null, algorithm: string, shouldFetch: boolean) => {
+    return useQuery({
+        queryKey: ['mineOcpt', fileId, algorithm],
+        queryFn: () => mineOcpt(fileId!, algorithm),
+        enabled: Boolean(fileId) && shouldFetch,
         refetchOnWindowFocus: false,
     });
 };
