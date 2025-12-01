@@ -12,4 +12,6 @@ pub mod example_log;
 pub mod sequence_cut_detection;
 pub mod basecase;
 pub mod sequence_cut;
+pub mod loop_cut;
+pub mod loop_cut_detection;
 pub mod exclusive_cut;

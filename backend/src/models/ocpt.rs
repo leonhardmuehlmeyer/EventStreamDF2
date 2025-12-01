@@ -1439,6 +1439,54 @@ pub struct ObjectTypeFE {
     pub exhibits: Option<Vec<String>>,
 }
 
+impl OCPTNode {
+    /// Pretty-print the node and its descendants as an indented tree with operator symbols
+    /// and leaf metadata.
+    pub fn pretty(&self) -> String {
+        fn fmt_set(set: &HashSet<String>) -> String {
+            let mut items: Vec<&str> = set.iter().map(|s| s.as_str()).collect();
+            items.sort_unstable();
+            format!("{{{}}}", items.join(", "))
+        }
+
+        fn render(node: &OCPTNode, buf: &mut String, indent: usize) {
+            let pad = "    ".repeat(indent);
+            match node {
+                OCPTNode::Operator(op) => {
+                    let symbol = match op.operator_type {
+                        OCPTOperatorType::Sequence => "->",
+                        OCPTOperatorType::ExclusiveChoice => "X",
+                        OCPTOperatorType::Concurrency => "+",
+                        OCPTOperatorType::Loop(_) => "*",
+                    };
+                    buf.push_str(&format!("{pad}{symbol}\n"));
+                    for child in &op.children {
+                        render(child, buf, indent + 1);
+                    }
+                }
+                OCPTNode::Leaf(leaf) => {
+                    let label = match &leaf.activity_label {
+                        OCPTLeafLabel::Activity(a) => a.as_str(),
+                        OCPTLeafLabel::Tau => "tau",
+                    };
+                    buf.push_str(&format!("{pad}{label}\n"));
+                    buf.push_str(&format!(
+                        "{pad}    Related Types: {}\n{pad}    Divergent Types: {}\n{pad}    Convergent Types: {}\n{pad}    Deficient Types: {}\n",
+                        fmt_set(&leaf.related_ob_types),
+                        fmt_set(&leaf.divergent_ob_types),
+                        fmt_set(&leaf.convergent_ob_types),
+                        fmt_set(&leaf.deficient_ob_types),
+                    ));
+                }
+            }
+        }
+
+        let mut out = String::new();
+        render(self, &mut out, 0);
+        out
+    }
+}
+
 ////////// sid ///////////////////////////
 #[derive(serde::Serialize)]
 pub struct TreeNode {

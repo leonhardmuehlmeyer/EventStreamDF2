@@ -4,10 +4,10 @@ use crate::core::ocim::{
     common_data::{LocalData, GlobalData},
     basecase::basecase,
     sequence_cut_detection::find_cut_sequence,
+    loop_cut_detection::find_cut_loop,
     log_splitting::split_log,
     exclusive_cut_detection::find_cut_exclusive,
     concurrent_cut_detection::find_cut_concurrent,
-    // loop_cut_detection::find_cut_loop,
 };
 
 pub fn ocim_init(log: &OCEL) -> OCPT {
@@ -56,6 +56,14 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
         // A cut was found, now split the log and recurse.
 
         let sublogs = split_log(&local_data, partition, &operator, global_data);
+        
+        //DEBUG
+        match operator {
+            OCPTOperatorType::Loop(_) => {
+                println!("Sublogs: {:?}", sublogs);
+            }
+            _ => { /* No special action for other operators */ }
+        }
 
         let subtrees: Vec<OCPTNode> = sublogs
             .into_iter()
@@ -87,9 +95,9 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
 
 pub fn find_strict_cut(local_data: &LocalData, global_data: &GlobalData) -> Option<(Vec<Vec<String>>, OCPTOperatorType)> {
     for check in [find_cut_sequence,
-        // find_cut_exclusive, 
+        find_cut_exclusive, 
         find_cut_concurrent, 
-        // find_cut_loop,
+        find_cut_loop,
         ] 
     {
         if let Some((partition, operator)) = check(local_data, global_data) {
@@ -98,4 +106,33 @@ pub fn find_strict_cut(local_data: &LocalData, global_data: &GlobalData) -> Opti
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::ocim::common_data::{GlobalData, LocalData};
+    use crate::models::ocpt::{OCPTNode, OCPTOperatorType};
+    use process_mining::ocel::ocel_struct::OCEL;
+    use std::path::Path;
+
+    #[test]
+    fn ocim_recursive_builds_sequence_root_for_example_log() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let path = manifest
+            .join("..")
+            .join("example_data")
+            .join("ocel")
+            .join("example_log_ocim.json");
+
+        let data = std::fs::read_to_string(&path).expect("read example OCEL file");
+        let ocel: OCEL = serde_json::from_str(&data).expect("parse example OCEL");
+
+        let local = LocalData::new(vec![ocel.clone()], None);
+        let global = GlobalData::new(vec![ocel]);
+
+        let root = ocim_recursive(local, &global);
+
+        println!("{}", root.pretty());
+    }
 }
