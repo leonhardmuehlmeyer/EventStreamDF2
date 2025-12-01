@@ -1,6 +1,5 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use process_mining::OCEL;
-use crate::models::ocel::OCELUtils;
 
 /// Find a concurrent cut (Algorithm 2). Returns a vector of alphabet partitions
 /// (each partition is an FxHashSet of activity names). If no concurrent cut is

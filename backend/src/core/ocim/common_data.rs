@@ -7,8 +7,8 @@ use crate::models::ocel::OCELUtils;
 
 #[derive(Debug, Clone)]
 pub struct LocalData {
-    pub oc_log_list: Vec<OCEL>,                // one per object type
-    pub alphabet: Vec<String>,           // Σ
+    pub oc_log_list: Vec<OCEL>,      
+    pub alphabet: Vec<String>,                  // Σ
     pub object_types: FxHashSet<String>,       // types in current sublog
     pub object_set: FxHashSet<String>,         // objects in current sublog
     pub expected_objects: FxHashSet<String>,   // optionally narrowed
@@ -78,7 +78,6 @@ impl GlobalData {
 mod tests {
     use super::*;
     use crate::core::ocim::follows_relations::OCGraphRelations;
-    use crate::core::ocim::example_log::build_example_log;
     use std::path::Path;
 
     #[test]

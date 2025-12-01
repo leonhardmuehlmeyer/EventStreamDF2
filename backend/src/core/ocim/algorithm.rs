@@ -5,6 +5,10 @@ use crate::core::ocim::{
     basecase::basecase,
     sequence_cut_detection::find_cut_sequence,
     loop_cut_detection::find_cut_loop,
+    log_splitting::split_log,
+    exclusive_cut_detection::find_cut_exclusive,
+    concurrent_cut_detection::find_cut_concurrent,
+    // loop_cut_detection::find_cut_loop,
 };
 
 pub fn ocim_init(log: &OCEL) -> OCPT {
@@ -51,19 +55,6 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     // Try to find a strict cut
     if let Some((partition, operator)) = find_strict_cut(&local_data, global_data) {
         // A cut was found, now split the log and recurse.
-        // NOTE: split_log is not implemented. A stub is used to allow compilation.
-        
-        // This function should be in `log_splitting.rs` once implemented.
-        fn split_log(
-            _local_data: &LocalData,
-            _partition: Vec<Vec<String>>,
-            _operator: &OCPTOperatorType,
-            _global_data: &GlobalData,
-        ) -> Vec<LocalData> {
-            // STUB: Returns an empty vector because the real log splitting
-            // logic is not yet implemented.
-            vec![]
-        }
 
         let sublogs = split_log(&local_data, partition, &operator, global_data);
 
@@ -81,7 +72,7 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     } else {
         // If no cut found: try fallthrough (another strategy)
         let fallthrough_found: bool = false;
-        let fallthrough_partitions: Vec<Vec<String>> = Vec::new();
+        let _fallthrough_partitions: Vec<Vec<String>> = Vec::new();
 
         if fallthrough_found {
             // Replace with real SPLITLOG on fallthrough partitions and recursion
@@ -100,6 +91,8 @@ pub fn find_strict_cut(local_data: &LocalData, global_data: &GlobalData) -> Opti
         // find_cut_exclusive, 
         // find_cut_concurrent, 
         find_cut_loop,
+        find_cut_concurrent, 
+        // find_cut_loop,
         ] 
     {
         if let Some((partition, operator)) = check(local_data, global_data) {

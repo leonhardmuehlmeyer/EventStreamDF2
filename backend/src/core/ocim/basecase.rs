@@ -1,7 +1,6 @@
 use crate::core::ocim::common_data::{GlobalData, LocalData};
 use crate::models::ocpt::{OCPTLeaf, OCPTNode, OCPTOperator, OCPTOperatorType};
 use rustc_hash::{FxHashMap, FxHashSet};
-use std::collections::HashSet;
 
 pub fn basecase(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     // only call if local_data.alphabet.len() == 1
@@ -15,7 +14,7 @@ pub fn basecase(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     let sizes: FxHashMap<String, bool> = related_ots
         .iter()
         .map(|ot| {
-            let has_multi_event_obj = global_data.oc_log_list.iter().any(|log| {
+            let has_multi_event_obj = local_data.oc_log_list.iter().any(|log| {
                 let mut oid_event_counts: FxHashMap<String, usize> = FxHashMap::default();
 
                 let oids_of_type_ot: FxHashSet<String> = log

@@ -1,7 +1,7 @@
 use crate::handlers::ocim::apply_ocim;
 use axum::{
     Router,
-    routing::{delete, get},
+    routing::get,
 };
 
 pub fn router() -> Router {
