@@ -8,17 +8,15 @@ import ExploreSidebar from '~/components/explore/ExploreSidebar';
 import OcelFileNode from '~/components/explore/file/OcelFileNode';
 import OcptFileNode from '~/components/explore/file/OcptFileNode';
 import FileSelectionDialog from '~/components/explore/file/ui/FileSelectionDialog';
+import OcelMinerNode from '~/components/explore/miner/OcelMinerNode';
 import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
+import EventGraphVisualizationNode from '~/components/explore/visualization/EventGraphVisualizationNode';
+import HistVisualizationNode from '~/components/explore/visualization/HistVisualizationNode';
 import OcptVisualizationNode from '~/components/explore/visualization/OcptVisualizationNode';
 import { useExploreEventHandlers } from '~/hooks/useExploreEventHandlers';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useFileDialogStore } from '~/stores/store';
 import { Logger } from '~/lib/logger';
-
-import EventGraphVisualizationNode from '~/components/explore/visualization/EventGraphVisualizationNode';
-import OcelMinerNode from '~/components/explore/miner/OcelMinerNode';
-
-
 
 const logger = Logger.getInstance();
 
@@ -31,6 +29,7 @@ const nodeTypes = {
     ocptFileNode: OcptFileNode,
     eventGraphVisualizationNode: EventGraphVisualizationNode,
     ocelMinerNode: OcelMinerNode,
+    histVisualizationNode: HistVisualizationNode,
 };
 
 const Explore: React.FC = () => {
@@ -74,7 +73,6 @@ const Explore: React.FC = () => {
         </>
     );
 };
-
 
 const ExploreApp = () => {
     return (

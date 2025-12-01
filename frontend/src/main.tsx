@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import '~/index.css';
 import Explore from '~/routes/Explore';
+import HistViz from '~/routes/Hist-Viz';
 import Home from '~/routes/Home';
 import OcptViewer from '~/routes/OcptViewer';
 import Pipeline from '~/routes/Pipeline';
@@ -43,6 +44,10 @@ const router = createBrowserRouter([
     {
         path: '/data/pipeline/explore/ocel/:nodeId',
         element: <OcelViewer />,
+    },
+    {
+        path: '/data/pipeline/explore/hist-viz/:nodeId',
+        element: <HistViz />,
     },
 ]);
 
