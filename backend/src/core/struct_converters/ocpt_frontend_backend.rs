@@ -176,7 +176,7 @@ fn backend_node_to_frontend(node: &OCPTNode) -> HierarchyNode {
 fn stringify_operator(op: &OCPTOperatorType) -> String {
     match op {
         OCPTOperatorType::Sequence => "sequence".to_string(),
-        OCPTOperatorType::ExclusiveChoice => "exclusiveChoice".to_string(),
+        OCPTOperatorType::ExclusiveChoice => "xor".to_string(),
         OCPTOperatorType::Concurrency => "parallel".to_string(),
         OCPTOperatorType::Loop(_cnt) => "loop".to_string(), // ignore parameter in FE
     }
