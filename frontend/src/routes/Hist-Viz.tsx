@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '~/components/ui/button';
@@ -16,6 +16,7 @@ import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useSetFilteredHistogramMutation } from '~/services/mutation';
 import { useGetHistogram } from '~/services/queries';
 import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
+// Adjusted import to standard path
 import '~/styles/hist-viz.css';
 import type { HistogramEntry } from '~/types';
 
@@ -41,7 +42,9 @@ export default function HistViz() {
     // Toggles between editing and submitted/locked view
     const [isEditing, setIsEditing] = useState(true);
     // -----------------------------
-    const { getNode } = useExploreFlowStore();
+
+    // ---Access histogramStates from store ---
+    const { getNode, histogramStates, setHistogramState } = useExploreFlowStore();
     const node = nodeId ? getNode(nodeId) : undefined;
 
     // Obtain the fileId from the input asset
@@ -83,18 +86,30 @@ export default function HistViz() {
         }
     }, [data]);
 
-    // When data loads, initialize allSelections to have ALL bins selected by default
+    // --- Initialize selections from Store if available, else Default ---
     useEffect(() => {
-        if (!data) return;
-        const defaultSelections: Record<string, number[]> = {};
-        data.histograms.forEach((entry) => {
-            const chartKey = `${entry.event_type}|${entry.object_type}`;
-            const allIndices = entry.histogram.map((_, i) => i);
-            defaultSelections[chartKey] = allIndices;
-        });
-        setAllSelections(defaultSelections);
-    }, [data]);
-    // -----------------
+        if (!data || !nodeId) return;
+
+        //  Check if we have saved state in the store for this node
+        const savedState = histogramStates[nodeId];
+
+        if (savedState) {
+            // Restore saved selections and locked state
+            setAllSelections(savedState.selections);
+            setIsEditing(!savedState.isSubmitted);
+        } else {
+            // Default Behavior: Select All, Edit Mode = true
+            const defaultSelections: Record<string, number[]> = {};
+            data.histograms.forEach((entry) => {
+                const chartKey = `${entry.event_type}|${entry.object_type}`;
+                const allIndices = entry.histogram.map((_, i) => i);
+                defaultSelections[chartKey] = allIndices;
+            });
+            setAllSelections(defaultSelections);
+            setIsEditing(true);
+        }
+    }, [data, nodeId, histogramStates]);
+    // -------------------------------------------------------------------------
 
     // Filter Handlers in callback
     const handleEventTypeSelect = useCallback((eventType: string) => {
@@ -163,7 +178,6 @@ export default function HistViz() {
     }, [data, sortMode, selectedEventTypes, selectedObjectTypes]); // --- Added filter state dependencies ---
 
     // Merges sorted numbers into consecutive ranges as per requirement of the backend
-    // e.g., [1, 2, 4, 6, 7] -> [[1, 2], [4, 4], [6, 7]]
     const mergeToRanges = (counts: number[]): [number, number][] => {
         if (counts.length === 0) return [];
         const sortedCounts = [...counts].sort((a, b) => a - b);
@@ -190,9 +204,18 @@ export default function HistViz() {
             [chartKey]: indices,
         }));
     };
+
     const handleSubmit = () => {
-        if (!data) return;
+        if (!data || !nodeId) return;
         setIsEditing(false); // Lock the charts
+
+        // --- Persist state to store ---
+        setHistogramState(nodeId, {
+            selections: allSelections,
+            isSubmitted: true,
+        });
+        // -------------------------------------
+
         // Find the original histogram data by its key for easy lookup
         const dataMap = new Map<string, HistogramEntry>(
             data.histograms.map((h) => [`${h.event_type}|${h.object_type}`, h])
@@ -208,17 +231,25 @@ export default function HistViz() {
                 }
                 // --------------------------------------------------------
 
+                // if (selectedIndices.length === 0) {
+                //     return null;
+                // }
+                // If selection is empty (user cleared it), explicitly return empty ranges array
                 if (selectedIndices.length === 0) {
-                    return null;
+                    return {
+                        event_type,
+                        object_type,
+                        ranges: [], // <--- Explicitly send empty range
+                    };
                 }
                 // Map selected indices back to their 'count' values
                 const selectedCounts = selectedIndices.map((index) => originalEntry.histogram[index].count);
                 // Merge consecutive counts into ranges
                 const ranges = mergeToRanges(selectedCounts);
 
-                // --- Don't submit if ranges are empty ---
+                // // --- Don't submit if ranges are empty ---
                 // if (ranges.length === 0) return null;
-                // ---------------------------------------------
+                // // ---------------------------------------------
 
                 return {
                     event_type,
@@ -252,13 +283,27 @@ export default function HistViz() {
                     };
 
                     if (node && nodeId) {
-                        const updatedAssets = [...node.data.assets, newAsset];
+                        const otherAssets = node.data.assets.filter((asset) => asset.io !== 'output'); // This ensures we replace the old output file instead of appending a new one.
+                        const updatedAssets = [...otherAssets, newAsset];
+                        // const updatedAssets = [...node.data.assets, newAsset];
                         node.data.onDataChange(nodeId, { assets: updatedAssets });
                     }
                     navigate('/data/pipeline/explore');
                 },
             }
         );
+    };
+
+    // Handle Unlocking for Edit
+    const handleEditClick = () => {
+        setIsEditing(true);
+        if (nodeId) {
+            // Update store to reflect we are editing again
+            setHistogramState(nodeId, {
+                selections: allSelections,
+                isSubmitted: false,
+            });
+        }
     };
 
     return (
@@ -279,7 +324,7 @@ export default function HistViz() {
                                 {/* --- Added filter buttons --- */}
                                 <div className="flex items-center gap-2 mr-6">
                                     <FilterDropdown
-                                        title="Case Filter"
+                                        title="Activity Filter"
                                         items={allEventTypes}
                                         selectedItems={selectedEventTypes}
                                         onItemSelect={handleEventTypeSelect}
@@ -288,7 +333,7 @@ export default function HistViz() {
                                         isEditing={isEditing} // ---Pass isEditing prop to stop the popup to collapse ---
                                     />
                                     <FilterDropdown
-                                        title="Object Filter"
+                                        title="Type Filter"
                                         items={allObjectTypes}
                                         selectedItems={selectedObjectTypes}
                                         onItemSelect={handleObjectTypeSelect}
@@ -336,6 +381,7 @@ export default function HistViz() {
                                                                         handleSelectionChange(chartKey, indices)
                                                                     }
                                                                     isEditing={isEditing}
+                                                                    fileId={fileId || ''} // --- CHANGED: Pass fileId for colors ---
                                                                 />
                                                             );
                                                             // --------------
@@ -371,7 +417,7 @@ export default function HistViz() {
                         ) : (
                             <div className="flex items-center gap-4">
                                 <p className="text-sm text-green-600">Data Submitted (see console).</p>
-                                <Button size="lg" variant="outline" onClick={() => setIsEditing(true)}>
+                                <Button size="lg" variant="outline" onClick={handleEditClick}>
                                     Edit
                                 </Button>
                             </div>
@@ -389,12 +435,14 @@ interface HistogramCardProps {
     selectedIdx: number[];
     onSelect: (indices: number[]) => void;
     isEditing: boolean;
+    fileId: string; // Prop required for color lookups
 }
-function HistogramCard({ entry, selectedIdx, onSelect, isEditing }: HistogramCardProps) {
+function HistogramCard({ entry, selectedIdx, onSelect, isEditing, fileId }: HistogramCardProps) {
     const chartId = `${entry.event_type}_${entry.object_type}`;
     return (
         <HistogramChart
             id={chartId}
+            fileId={fileId} //Pass fileId to Chart
             bins={entry.histogram.map((b) => ({ x: b.count, y: b.frequency }))}
             selectedIdx={selectedIdx}
             onSelect={onSelect}
@@ -468,4 +516,3 @@ const FilterDropdown = ({
         </Popover>
     );
 };
-// ------------------------------------
