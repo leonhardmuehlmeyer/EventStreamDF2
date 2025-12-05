@@ -8,7 +8,7 @@ use crate::core::ocim::{
     log_splitting::split_log,
     exclusive_cut_detection::find_cut_exclusive,
     concurrent_cut_detection::find_cut_concurrent,
-    fallthrough::detect_fallthrough_fitness_polynomial,
+    fallthrough_detection::detect_fallthrough_fitness_polynomial,
 };
 
 pub fn ocim_init(logs: &Vec<OCEL>) -> OCPT {
