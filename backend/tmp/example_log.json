@@ -1,0 +1,730 @@
+{
+  "eventTypes": [
+    {
+      "name": "identify",
+      "attributes": []
+    },
+    {
+      "name": "pay",
+      "attributes": []
+    },
+    {
+      "name": "place",
+      "attributes": []
+    },
+    {
+      "name": "produce",
+      "attributes": []
+    },
+    {
+      "name": "reject",
+      "attributes": []
+    },
+    {
+      "name": "send",
+      "attributes": []
+    },
+    {
+      "name": "store",
+      "attributes": []
+    }
+  ],
+  "objectTypes": [
+    {
+      "name": "C",
+      "attributes": []
+    },
+    {
+      "name": "I",
+      "attributes": []
+    },
+    {
+      "name": "O",
+      "attributes": []
+    }
+  ],
+  "events": [
+    {
+      "id": "0",
+      "type": "identify",
+      "time": "2024-01-01T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "1",
+      "type": "reject",
+      "time": "2024-01-02T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "type": "identify",
+      "time": "2024-01-03T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "type": "place",
+      "time": "2024-01-04T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O1",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I1",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I2",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "type": "place",
+      "time": "2024-01-05T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O2",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I3",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I4",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "type": "produce",
+      "time": "2024-01-06T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O1",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I1",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "type": "produce",
+      "time": "2024-01-07T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O1",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I2",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "type": "pay",
+      "time": "2024-01-08T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O1",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I1",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I2",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "type": "pay",
+      "time": "2024-01-09T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O2",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I3",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I4",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "type": "produce",
+      "time": "2024-01-10T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O2",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I3",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "type": "produce",
+      "time": "2024-01-11T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O2",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I4",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "type": "place",
+      "time": "2024-01-12T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O3",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I5",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I6",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "type": "produce",
+      "time": "2024-01-13T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O3",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I6",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "type": "pay",
+      "time": "2024-01-14T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O3",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I5",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I6",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "14",
+      "type": "produce",
+      "time": "2024-01-15T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O3",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I5",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "15",
+      "type": "place",
+      "time": "2024-01-16T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O4",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I7",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I8",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "16",
+      "type": "identify",
+      "time": "2024-01-17T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C2",
+          "qualifier": "C"
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "type": "produce",
+      "time": "2024-01-18T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O4",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I7",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "type": "produce",
+      "time": "2024-01-19T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O4",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I8",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "19",
+      "type": "place",
+      "time": "2024-01-20T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C2",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O5",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I9",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "20",
+      "type": "pay",
+      "time": "2024-01-21T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C1",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O4",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I7",
+          "qualifier": "I"
+        },
+        {
+          "objectId": "I8",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "21",
+      "type": "store",
+      "time": "2024-01-22T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O1",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I1",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "22",
+      "type": "store",
+      "time": "2024-01-23T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O1",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I2",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "23",
+      "type": "pay",
+      "time": "2024-01-24T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C2",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O5",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I9",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "24",
+      "type": "store",
+      "time": "2024-01-25T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O2",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I3",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "25",
+      "type": "send",
+      "time": "2024-01-26T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O2",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I4",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "26",
+      "type": "send",
+      "time": "2024-01-27T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O3",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I5",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "27",
+      "type": "produce",
+      "time": "2024-01-28T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "C2",
+          "qualifier": "C"
+        },
+        {
+          "objectId": "O5",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I9",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "28",
+      "type": "store",
+      "time": "2024-01-29T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O3",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I6",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "29",
+      "type": "send",
+      "time": "2024-01-30T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O4",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I8",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "30",
+      "type": "send",
+      "time": "2024-01-31T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O4",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I7",
+          "qualifier": "I"
+        }
+      ]
+    },
+    {
+      "id": "31",
+      "type": "send",
+      "time": "2024-02-01T09:00:00Z",
+      "attributes": [],
+      "relationships": [
+        {
+          "objectId": "O5",
+          "qualifier": "O"
+        },
+        {
+          "objectId": "I9",
+          "qualifier": "I"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "C1",
+      "type": "C",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "C2",
+      "type": "C",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I1",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I2",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I3",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I4",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I5",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I6",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I7",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I8",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "I9",
+      "type": "I",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "O1",
+      "type": "O",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "O2",
+      "type": "O",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "O3",
+      "type": "O",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "O4",
+      "type": "O",
+      "attributes": [],
+      "relationships": []
+    },
+    {
+      "id": "O5",
+      "type": "O",
+      "attributes": [],
+      "relationships": []
+    }
+  ]
+}

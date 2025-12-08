@@ -5,5 +5,5 @@ use axum::{
 };
 
 pub fn router() -> Router {
-    Router::new().route("/ocpt/df2/{file_id}", get(apply_df2))
+    Router::new().route("/df2/{file_id}", get(apply_df2))
 }

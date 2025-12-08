@@ -5,6 +5,7 @@ pub mod event_object_frequencies;
 pub mod log_graphs;
 pub mod objects;
 pub mod upload;
+pub mod ocim;
 use axum::Router;
 
 pub fn router() -> Router {
@@ -16,7 +17,8 @@ pub fn router() -> Router {
             "/event_object_frequencies",
             event_object_frequencies::router(),
         )
-        .nest("/case_notion", crate::routes::v1::case_notion::router())
+        .nest("/case_notion", case_notion::router())
         .nest("/log_graphs", log_graphs::router())
-        .merge(df2::router())
+        .nest("/ocpt", df2::router())
+        .nest("/ocpt", ocim::router())
 }

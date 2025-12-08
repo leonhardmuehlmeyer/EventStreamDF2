@@ -176,7 +176,7 @@ fn backend_node_to_frontend(node: &OCPTNode) -> HierarchyNode {
 fn stringify_operator(op: &OCPTOperatorType) -> String {
     match op {
         OCPTOperatorType::Sequence => "sequence".to_string(),
-        OCPTOperatorType::ExclusiveChoice => "exclusiveChoice".to_string(),
+        OCPTOperatorType::ExclusiveChoice => "xor".to_string(),
         OCPTOperatorType::Concurrency => "parallel".to_string(),
         OCPTOperatorType::Loop(_cnt) => "loop".to_string(), // ignore parameter in FE
     }
@@ -297,12 +297,12 @@ mod tests {
         use tokio::fs;
 
         // Hard-coded file
-        let path = "../example_data/ocel/ocel_v2_123.json";
+        let path = "../example_data/ocpt/order_management_tree.json";
 
         // Read file content
         let content = fs::read_to_string(path)
             .await
-            .expect("❌ failed to read ../example_data/ocel/ocel_v2_123.json");
+            .expect("❌ failed to read ../example_data/ocel/order-management_tree.json");
 
         // Try to parse as frontend struct first
         if let Ok(fe_struct) = serde_json::from_str::<OcptFE>(&content) {
@@ -317,7 +317,7 @@ mod tests {
             );
 
             // Store converted backend
-            let out_backend = "./temp/ocpt_123_backend.json";
+            let out_backend = "./temp/order-management_backend.json";
             let pretty_backend = serde_json::to_string_pretty(&ocpt_backend).unwrap();
             fs::write(out_backend, pretty_backend)
                 .await
@@ -328,7 +328,7 @@ mod tests {
             let ocpt_frontend = backend_to_frontend(&ocpt_backend);
 
             // Store converted frontend
-            let out_frontend = "./temp/ocpt_123_frontend.json";
+            let out_frontend = "./temp/order-management_frontend.json";
             let pretty_frontend = serde_json::to_string_pretty(&ocpt_frontend).unwrap();
             fs::write(out_frontend, pretty_frontend)
                 .await
@@ -341,7 +341,7 @@ mod tests {
             assert!(be_struct.is_valid(), "backend OCPT should already be valid");
 
             // Store normalized backend copy
-            let out_backend = "./temp/ocpt_123_backend.json";
+            let out_backend = "./temp/order-management_backend.json";
             let pretty_backend = serde_json::to_string_pretty(&be_struct).unwrap();
             fs::write(out_backend, pretty_backend)
                 .await
@@ -352,14 +352,14 @@ mod tests {
             let ocpt_frontend = backend_to_frontend(&be_struct);
 
             // Store converted frontend
-            let out_frontend = "./temp/ocpt_123_frontend.json";
+            let out_frontend = "./temp/order-management_frontend.json";
             let pretty_frontend = serde_json::to_string_pretty(&ocpt_frontend).unwrap();
             fs::write(out_frontend, pretty_frontend)
                 .await
                 .expect("❌ failed to write frontend OCPT");
             println!("✅ Stored converted frontend at {out_frontend}");
         } else {
-            panic!("❌ ocpt_123.json is neither valid frontend nor backend OCPT JSON");
+            panic!("❌ order-management.json is neither valid frontend nor backend OCPT JSON");
         }
     }
 }

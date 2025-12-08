@@ -1,6 +1,11 @@
 #![allow(dead_code)] // helper functions which didn't get used yet in the code
+use crate::traits::import_export::{ExportableToPath, ImportableFromPath};
+use async_trait::async_trait;
+use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::collections::{HashMap, HashSet};
+use tokio::fs;
 use uuid::Uuid;
 
 /////////////////// backend struct copied from https://github.com/aarkue/rust4pm/process_mining/src/object_centric/ocpt/object_centric_process_tree_struct.rs ////////////////
@@ -1434,6 +1439,54 @@ pub struct ObjectTypeFE {
     pub exhibits: Option<Vec<String>>,
 }
 
+impl OCPTNode {
+    /// Pretty-print the node and its descendants as an indented tree with operator symbols
+    /// and leaf metadata.
+    pub fn pretty(&self) -> String {
+        fn fmt_set(set: &HashSet<String>) -> String {
+            let mut items: Vec<&str> = set.iter().map(|s| s.as_str()).collect();
+            items.sort_unstable();
+            format!("{{{}}}", items.join(", "))
+        }
+
+        fn render(node: &OCPTNode, buf: &mut String, indent: usize) {
+            let pad = "    ".repeat(indent);
+            match node {
+                OCPTNode::Operator(op) => {
+                    let symbol = match op.operator_type {
+                        OCPTOperatorType::Sequence => "->",
+                        OCPTOperatorType::ExclusiveChoice => "X",
+                        OCPTOperatorType::Concurrency => "+",
+                        OCPTOperatorType::Loop(_) => "*",
+                    };
+                    buf.push_str(&format!("{pad}{symbol}\n"));
+                    for child in &op.children {
+                        render(child, buf, indent + 1);
+                    }
+                }
+                OCPTNode::Leaf(leaf) => {
+                    let label = match &leaf.activity_label {
+                        OCPTLeafLabel::Activity(a) => a.as_str(),
+                        OCPTLeafLabel::Tau => "tau",
+                    };
+                    buf.push_str(&format!("{pad}{label}\n"));
+                    buf.push_str(&format!(
+                        "{pad}    Related Types: {}\n{pad}    Divergent Types: {}\n{pad}    Convergent Types: {}\n{pad}    Deficient Types: {}\n",
+                        fmt_set(&leaf.related_ob_types),
+                        fmt_set(&leaf.divergent_ob_types),
+                        fmt_set(&leaf.convergent_ob_types),
+                        fmt_set(&leaf.deficient_ob_types),
+                    ));
+                }
+            }
+        }
+
+        let mut out = String::new();
+        render(self, &mut out, 0);
+        out
+    }
+}
+
 ////////// sid ///////////////////////////
 #[derive(serde::Serialize)]
 pub struct TreeNode {
@@ -1442,3 +1495,65 @@ pub struct TreeNode {
 }
 
 pub type ProcessForest = Vec<TreeNode>;
+
+/// Implementation of [`ImportableFromPath`] for [`OCPT`].
+///
+/// This implementation constructs the file path using a standard naming pattern:
+/// `./temp/ocpt_<file_id>.json`, then imports and deserializes the file using
+/// [`ImportableFromPath::from_json_file`].
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let ocpt = OCPT::import_from_path("18d356df-2be1-4af9-8618-debe98a0575b").await?;
+/// ```
+#[async_trait]
+impl ImportableFromPath for OCPT {
+    async fn import_from_path(file_id: &str) -> Result<Self, (StatusCode, String)> {
+        let path = format!("./temp/ocpt_{}.json", file_id);
+        Self::from_json_file(&path).await
+    }
+}
+
+/// Implementation of [`ExportableToPath`] for [`OCPT`].
+///
+/// This implementation generates a unique file ID, constructs the file path
+/// using the pattern `./temp/ocpt_<file_id>.json`, serializes the OCPT
+/// instance to JSON, and then asynchronously writes it to the file system.
+///
+/// # Returns
+/// - `Ok(String)` containing the generated `file_id` if the export is successful.
+/// - `Err((StatusCode, String))` if serialization or file I/O fails.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let ocpt: OCPT = ...; // construct or import an OCPT
+/// let exported_file_id = ocpt.export_to_path().await?;
+/// println!("OCPT exported with ID: {}", exported_file_id);
+/// ```
+#[async_trait]
+impl ExportableToPath for OCPT {
+    async fn export_to_path(&self) -> Result<String, (StatusCode, String)> {
+        let export_id = Uuid::new_v4().to_string();
+        let filename = format!("./temp/ocpt_{}.json", &export_id);
+
+        let data = serde_json::to_string_pretty(self).map_err(|err| {
+            eprintln!("serialize OCPT failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to serialize OCPT".to_string(),
+            )
+        })?;
+
+        fs::write(&filename, data).await.map_err(|err| {
+            eprintln!("write OCPT failed: {err}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to persist OCPT".to_string(),
+            )
+        })?;
+
+        Ok(export_id)
+    }
+}

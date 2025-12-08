@@ -105,6 +105,9 @@ export const mineOcpt = async (fileId: string, algorithm: string = 'DF2'): Promi
     if (algorithm === 'DF2') {
         const response = await api.get(`v1/ocpt/df2/${fileId}`);
         return response.data;
+    } else if (algorithm === 'OCIM') {
+        const response = await api.get(`v1/ocpt/ocim/${fileId}`);
+        return response.data;
     }
     throw new Error(`Algorithm ${algorithm} not supported`);
 };

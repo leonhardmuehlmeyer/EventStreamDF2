@@ -93,6 +93,9 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
                     <SelectItem className="text-xs text-amber-600 font-semibold" value="DF2">
                         DF2
                     </SelectItem>
+                    <SelectItem className="text-xs text-amber-600 font-semibold" value="OCIM">
+                        OCIM
+                    </SelectItem>
                 </SelectContent>
             </Select>
         </div>

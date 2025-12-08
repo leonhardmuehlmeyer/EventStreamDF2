@@ -2,12 +2,8 @@
 #![allow(dead_code)]
 use crate::core::case_notion::{
     measures::{average_score, f1_from_measures, measure_value},
-    utils::{
-        build_event_identifiers, build_object_identifiers, detect_diverging_object_types,
-        map_object_id_to_type,
-    },
 };
-
+use crate::models::ocel::{OCELUtils,build_event_identifiers, build_object_identifiers,map_object_id_to_type};
 use process_mining::OCEL;
 use process_mining::ocel::ocel_struct::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -238,8 +234,8 @@ impl CaseNotionContext {
         let obj_id_to_type = map_object_id_to_type(&log.objects);
         let unique_object_types: FxHashSet<String> =
             log.object_types.iter().map(|o| o.name.clone()).collect();
-        let unique_activities: FxHashSet<String> =
-            log.event_types.iter().map(|e| e.name.clone()).collect();
+        // let unique_activities: FxHashSet<String> =
+        //     log.event_types.iter().map(|e| e.name.clone()).collect();
 
         let event_identifiers =
             build_event_identifiers(&log.events, &obj_id_to_type, &unique_object_types);
@@ -263,11 +259,13 @@ impl CaseNotionContext {
         let mut sorted_object_types: Vec<String> = unique_object_types.iter().cloned().collect();
         sorted_object_types.sort_unstable();
 
-        let divergence_map = detect_diverging_object_types(
-            &event_identifiers,
-            &unique_object_types,
-            &unique_activities,
-        );
+        let divergence_map = log.detect_diverging_object_types();
+
+        // let divergence_map = detect_diverging_object_types(
+        //     &event_identifiers,
+        //     &unique_object_types,
+        //     &unique_activities,
+        // );
 
         let event_lookup: FxHashMap<String, OCELEvent> = log
             .events
