@@ -15,7 +15,7 @@ import { MinerNode } from '~/types/explore/nodes';
 const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
     const [fileId, setFileId] = useState<null | string>(null);
     const [fileName, setFileName] = useState<string>('');
-    const [algorithm, setAlgorithm] = useState<string>('DF2');
+    const [algorithm, setAlgorithm] = useState<string>(node.data.algorithm ?? 'DF2');
 
     const hasMinedAsset = useMemo(() => {
         return node.data.assets.some((asset) => asset.io === 'output');
@@ -46,6 +46,14 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         const updatedAssets = [...node.data.assets, asset];
         node.data.onDataChange(node.id, { assets: updatedAssets });
     }, [data, fileName]);
+
+    useMemo(() => {
+        const updatedData = {
+            ...node.data,
+            algorithm: algorithm,
+        };
+        node.data.onDataChange(node.id, updatedData);
+    }, [algorithm]);
 
     const handleExportJson = () => {
         if (!data) {
