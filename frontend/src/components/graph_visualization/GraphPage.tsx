@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useGetLogGraphs } from '~/services/queries';
 
 interface CaseGraphData {
@@ -16,6 +17,9 @@ interface GraphPageProps {
 const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
+
+    // --- Access Global Color Store ---
+    const { getColorForObject } = useExploreFlowStore();
 
     const { data, isLoading, error } = useGetLogGraphs(fileId);
 
@@ -106,10 +110,12 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             .attr('stroke', (d: any) => (d.deselected ? '#C0C0C0' : 'black'))
             .attr('stroke-opacity', (d: any) => (d.deselected ? 0.4 : 0.8));
 
-        // Node colors
+        // --- UPDATED NODE COLOR LOGIC ---
         const getColor = (d: any) => {
-            if (d.deselected) return '#C0C0C0'; // grey
-            return d.group === 'event' ? '#007BFF' : '#FF5F15';
+            if (d.deselected) return '#C0C0C0'; // grey if locally deselected via props
+
+            // Use global color store based on the Type Name (d.id)
+            return getColorForObject(fileId, d.id);
         };
 
         const node = g
@@ -119,7 +125,7 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             .enter()
             .append('circle')
             .attr('r', 10)
-            .attr('fill', getColor)
+            .attr('fill', getColor) // Apply new color logic
             .attr('stroke', '#333')
             .attr('stroke-width', 1)
             .call(
@@ -163,7 +169,7 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
 
             label.attr('x', (d: any) => d.x).attr('y', (d: any) => d.y);
         });
-    }, [graph]);
+    }, [graph, fileId, getColorForObject]); // Added dependencies
 
     if (isLoading) return <div className="flex w-full h-full justify-center items-center">Loading graph...</div>;
 

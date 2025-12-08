@@ -1,16 +1,17 @@
-
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { NodeDatum, EdgeDatum, ContextMenuState } from './types';
+import { useExploreFlowStore } from '~/stores/exploreStore';
 import { getDanglingNeighbors, getImmediateNeighbors } from './graphUtils';
-import  OcelVisualization  from './OcelVisualization';
+import { ContextMenuState, EdgeDatum, NodeDatum } from './types';
 
+// --- IMPORT ADDED
 
 const MAX_CHUNK = 5;
 const NODE_RADIUS = 20;
 const NODE_GAP = 40;
 
 export const useGraphInteractions = (
+    fileId: string, // --- ARGUMENT ADDED
     data: any,
     selectedType: string,
     setSelectedType: React.Dispatch<React.SetStateAction<string>>,
@@ -18,146 +19,143 @@ export const useGraphInteractions = (
     setChunk: React.Dispatch<React.SetStateAction<number>>,
     svgRef: React.RefObject<SVGSVGElement | null>
 ) => {
-    
+    // --- Access Global Color Store ---
+    const { getColorForObject } = useExploreFlowStore();
+
     const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
     const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
-    const [updateFlag, setUpdateFlag] = useState(0); 
+    const [updateFlag, setUpdateFlag] = useState(0);
 
     const nodesRef = useRef<NodeDatum[]>([]);
     const edgesRef = useRef<EdgeDatum[]>([]);
     const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
     const zoomTransformRef = useRef<d3.ZoomTransform | null>(null);
 
-    
-const expandedNodeIdsRef = useRef<Set<string>>(new Set());
+    const expandedNodeIdsRef = useRef<Set<string>>(new Set());
 
-   
-    const getNodeEdges = (nodeId: string) => edgesRef.current.filter((e) => e.source.id === nodeId || e.target.id === nodeId);
-  
+    const getNodeEdges = (nodeId: string) =>
+        edgesRef.current.filter((e) => e.source.id === nodeId || e.target.id === nodeId);
 
-    const handleCollapse = useCallback((nodeId: string) => {
-        const node = nodesRef.current.find((n) => n.id === nodeId);
-        if (!node) return;
+    const handleCollapse = useCallback(
+        (nodeId: string) => {
+            const node = nodesRef.current.find((n) => n.id === nodeId);
+            if (!node) return;
 
-        const newCollapsed = new Set(collapsedNodes);
-        
-     
-        const danglingNeighbors = getDanglingNeighbors(nodeId, edgesRef.current);
-        danglingNeighbors.forEach((n) => newCollapsed.add(n.id));
+            const newCollapsed = new Set(collapsedNodes);
 
-        setCollapsedNodes(newCollapsed);
-        setContextMenu(null);
-        setUpdateFlag((prev) => prev + 1);
-    }, [collapsedNodes]);
+            const danglingNeighbors = getDanglingNeighbors(nodeId, edgesRef.current);
+            danglingNeighbors.forEach((n) => newCollapsed.add(n.id));
 
+            setCollapsedNodes(newCollapsed);
+            setContextMenu(null);
+            setUpdateFlag((prev) => prev + 1);
+        },
+        [collapsedNodes]
+    );
 
-     const handleTypeChange = (value: string) => {
-    setSelectedType(value);
-    setChunk(1);
-    setUpdateFlag((p) => p + 1);
-};
-
-
-    const handleExpand = useCallback((nodeId: string) => {
-        const node = nodesRef.current.find((n) => n.id === nodeId);
-        if (!node || !data) return;
-
-        const newCollapsed = new Set(collapsedNodes);
-        newCollapsed.delete(nodeId); 
-
-        
-        if (node.type === 'object') {
-            const connectedEvents = (data.events || []).filter((evt: any) =>
-                (evt.relationships || []).some((rel: any) => rel.objectId?.toString() === nodeId)
-            );
-
-            const RADIUS = 70;
-            const totalEvents = Math.max(1, connectedEvents.length);
-
-            connectedEvents.forEach((evt: any, index: number) => {
-                const evtId = evt.id.toString();
-                let evtNode = nodesRef.current.find((n) => n.id === evtId);
-
-                const angle = (index / totalEvents) * 2 * Math.PI;
-                if (!evtNode) {
-                    evtNode = {
-                        id: evtId,
-                        label: evt.type || evt.activity || 'Event',
-                        type: 'event',
-                        x: node.x! + RADIUS * Math.cos(angle),
-                        y: node.y! + RADIUS * Math.sin(angle),
-                    };
-                    nodesRef.current.push(evtNode);
-                    positionsRef.current.set(evtId, { x: evtNode.x!, y: evtNode.y! });
-                }
-
-                
-                const edgeId = `${evtId}-${nodeId}`;
-                if (!edgesRef.current.find((e) => e.id === edgeId)) {
-                    edgesRef.current.push({
-                        id: edgeId,
-                        source: evtNode,
-                        target: node,
-                        label: '',
-                    });
-                }
-
-                
-                expandedNodeIdsRef.current.add(evtId);
-                newCollapsed.delete(evtId);
-            });
-        }
-        
-        else if (node.type === 'event') {
-            const rawEvent = (data.events || []).find((evt: any) => evt.id.toString() === nodeId);
-            if (!rawEvent) return;
-
-            const connectedRelationships = rawEvent.relationships || [];
-            const totalRelationships = Math.max(1, connectedRelationships.length);
-            const RADIUS = 70;
-
-            connectedRelationships.forEach((rel: any, index: number) => {
-                const objId = rel.objectId?.toString();
-                if (!objId) return;
-
-                let objNode = nodesRef.current.find((n) => n.id === objId);
-                const angle = (index / totalRelationships) * 2 * Math.PI;
-
-                if (!objNode) {
-                    const objectDetails = data.objects ? data.objects[objId] : null;
-                    objNode = {
-                        id: objId,
-                        label: objectDetails?.type || objId,
-                        type: 'object',
-                        x: node.x! + RADIUS * Math.cos(angle),
-                        y: node.y! + RADIUS * Math.sin(angle),
-                    };
-                    nodesRef.current.push(objNode);
-                    positionsRef.current.set(objId, { x: objNode.x!, y: objNode.y! });
-                }
-
-                const edgeId = `${nodeId}-${objId}`;
-                if (!edgesRef.current.find((e) => e.id === edgeId)) {
-                    edgesRef.current.push({
-                        id: edgeId,
-                        source: node,
-                        target: objNode,
-                        label: rel.qualifier || '',
-                    });
-                }
-
-                expandedNodeIdsRef.current.add(objId);
-                newCollapsed.delete(objId);
-            });
-        }
-
-        setCollapsedNodes(newCollapsed);
-        setContextMenu(null);
+    const handleTypeChange = (value: string) => {
+        setSelectedType(value);
+        setChunk(1);
         setUpdateFlag((p) => p + 1);
-    }, [data, collapsedNodes]);
-    
-  
-useEffect(() => {
+    };
+
+    const handleExpand = useCallback(
+        (nodeId: string) => {
+            const node = nodesRef.current.find((n) => n.id === nodeId);
+            if (!node || !data) return;
+
+            const newCollapsed = new Set(collapsedNodes);
+            newCollapsed.delete(nodeId);
+
+            if (node.type === 'object') {
+                const connectedEvents = (data.events || []).filter((evt: any) =>
+                    (evt.relationships || []).some((rel: any) => rel.objectId?.toString() === nodeId)
+                );
+
+                const RADIUS = 70;
+                const totalEvents = Math.max(1, connectedEvents.length);
+
+                connectedEvents.forEach((evt: any, index: number) => {
+                    const evtId = evt.id.toString();
+                    let evtNode = nodesRef.current.find((n) => n.id === evtId);
+
+                    const angle = (index / totalEvents) * 2 * Math.PI;
+                    if (!evtNode) {
+                        evtNode = {
+                            id: evtId,
+                            label: evt.type || evt.activity || 'Event',
+                            type: 'event',
+                            x: node.x! + RADIUS * Math.cos(angle),
+                            y: node.y! + RADIUS * Math.sin(angle),
+                        };
+                        nodesRef.current.push(evtNode);
+                        positionsRef.current.set(evtId, { x: evtNode.x!, y: evtNode.y! });
+                    }
+
+                    const edgeId = `${evtId}-${nodeId}`;
+                    if (!edgesRef.current.find((e) => e.id === edgeId)) {
+                        edgesRef.current.push({
+                            id: edgeId,
+                            source: evtNode,
+                            target: node,
+                            label: '',
+                        });
+                    }
+
+                    expandedNodeIdsRef.current.add(evtId);
+                    newCollapsed.delete(evtId);
+                });
+            } else if (node.type === 'event') {
+                const rawEvent = (data.events || []).find((evt: any) => evt.id.toString() === nodeId);
+                if (!rawEvent) return;
+
+                const connectedRelationships = rawEvent.relationships || [];
+                const totalRelationships = Math.max(1, connectedRelationships.length);
+                const RADIUS = 70;
+
+                connectedRelationships.forEach((rel: any, index: number) => {
+                    const objId = rel.objectId?.toString();
+                    if (!objId) return;
+
+                    let objNode = nodesRef.current.find((n) => n.id === objId);
+                    const angle = (index / totalRelationships) * 2 * Math.PI;
+
+                    if (!objNode) {
+                        const objectDetails = data.objects ? data.objects[objId] : null;
+                        objNode = {
+                            id: objId,
+                            label: objectDetails?.type || objId,
+                            type: 'object',
+                            x: node.x! + RADIUS * Math.cos(angle),
+                            y: node.y! + RADIUS * Math.sin(angle),
+                        };
+                        nodesRef.current.push(objNode);
+                        positionsRef.current.set(objId, { x: objNode.x!, y: objNode.y! });
+                    }
+
+                    const edgeId = `${nodeId}-${objId}`;
+                    if (!edgesRef.current.find((e) => e.id === edgeId)) {
+                        edgesRef.current.push({
+                            id: edgeId,
+                            source: node,
+                            target: objNode,
+                            label: rel.qualifier || '',
+                        });
+                    }
+
+                    expandedNodeIdsRef.current.add(objId);
+                    newCollapsed.delete(objId);
+                });
+            }
+
+            setCollapsedNodes(newCollapsed);
+            setContextMenu(null);
+            setUpdateFlag((p) => p + 1);
+        },
+        [data, collapsedNodes]
+    );
+
+    useEffect(() => {
         if (!data || !svgRef.current) return;
 
         const svg = d3.select(svgRef.current);
@@ -174,13 +172,13 @@ useEffect(() => {
         svg.call(zoom as any);
         if (zoomTransformRef.current) svg.call(zoom.transform as any, zoomTransformRef.current);
 
-        
         const events = data.events || [];
-        const filteredEvents = events.filter((evt: any) => selectedType === '__ALL__' || (evt.type || evt.activity) === selectedType);
+        const filteredEvents = events.filter(
+            (evt: any) => selectedType === '__ALL__' || (evt.type || evt.activity) === selectedType
+        );
 
         const chunkedEvents = filteredEvents.slice(0, chunk * MAX_CHUNK);
 
-       
         const baseEventNodes: NodeDatum[] = chunkedEvents.map((evt: any) => ({
             id: evt.id.toString(),
             label: evt.type || evt.activity || 'Event',
@@ -188,14 +186,15 @@ useEffect(() => {
         }));
 
         const objectIds = new Set<string>();
-        chunkedEvents.forEach((evt: any) => (evt.relationships || []).forEach((rel: any) => rel.objectId && objectIds.add(rel.objectId.toString())));
+        chunkedEvents.forEach((evt: any) =>
+            (evt.relationships || []).forEach((rel: any) => rel.objectId && objectIds.add(rel.objectId.toString()))
+        );
         const baseObjectNodes: NodeDatum[] = Array.from(objectIds).map((objId) => ({
             id: objId,
             label: data.objects?.[objId]?.type || objId,
             type: 'object',
         }));
 
-       
         const newBaseEdges: EdgeDatum[] = [];
         chunkedEvents.forEach((evt: any) => {
             (evt.relationships || []).forEach((rel: any, idx: number) => {
@@ -210,18 +209,18 @@ useEffect(() => {
             });
         });
 
-       
         const mergedNodeMap = new Map<string, NodeDatum>();
-        
         [...baseEventNodes, ...baseObjectNodes].forEach((n) => mergedNodeMap.set(n.id, { ...n }));
 
-       
         expandedNodeIdsRef.current.forEach((id) => {
             if (!mergedNodeMap.has(id)) {
-                
                 const eventMatch = (data.events || []).find((evt: any) => evt.id.toString() === id);
                 if (eventMatch) {
-                    mergedNodeMap.set(id, { id, label: eventMatch.type || eventMatch.activity || 'Event', type: 'event' });
+                    mergedNodeMap.set(id, {
+                        id,
+                        label: eventMatch.type || eventMatch.activity || 'Event',
+                        type: 'event',
+                    });
                 } else {
                     const objDetails = data.objects?.[id];
                     mergedNodeMap.set(id, { id, label: objDetails?.type || id, type: 'object' });
@@ -229,12 +228,9 @@ useEffect(() => {
             }
         });
 
-       
         nodesRef.current = Array.from(mergedNodeMap.values());
 
-        
         const edgeMap = new Map<string, EdgeDatum>();
-       
         edgesRef.current.forEach((e) => {
             if (mergedNodeMap.has(e.source.id) && mergedNodeMap.has(e.target.id)) {
                 edgeMap.set(e.id, {
@@ -246,7 +242,6 @@ useEffect(() => {
             }
         });
 
-        
         newBaseEdges.forEach((e) => {
             if (!edgeMap.has(e.id)) {
                 const source = mergedNodeMap.get(e.source.id);
@@ -259,7 +254,6 @@ useEffect(() => {
 
         edgesRef.current = Array.from(edgeMap.values());
 
-        
         nodesRef.current.forEach((n) => {
             if (!positionsRef.current.has(n.id)) {
                 let newX: number, newY: number, overlapping: boolean;
@@ -283,19 +277,13 @@ useEffect(() => {
             }
         });
 
-       
         Array.from(positionsRef.current.keys()).forEach((id) => {
             if (!nodesRef.current.find((n) => n.id === id)) positionsRef.current.delete(id);
         });
 
-        
         g.selectAll('line')
             .data(
-                edgesRef.current.filter(
-                    (d) =>
-                        !collapsedNodes.has(d.source.id) &&
-                        !collapsedNodes.has(d.target.id)
-                ),
+                edgesRef.current.filter((d) => !collapsedNodes.has(d.source.id) && !collapsedNodes.has(d.target.id)),
                 (d: any) => d.id
             )
             .join('line')
@@ -306,10 +294,8 @@ useEffect(() => {
             .attr('x2', (d) => d.target.x!)
             .attr('y2', (d) => d.target.y!);
 
-        
         const nodeData = nodesRef.current.filter((d) => !collapsedNodes.has(d.id));
 
-        
         const nodeGroup = g
             .selectAll<SVGGElement, NodeDatum>('g.node')
             .data(nodeData, (d) => d.id)
@@ -343,7 +329,6 @@ useEffect(() => {
                     })
             );
 
-        
         nodeGroup.selectAll('circle').remove();
         nodeGroup.selectAll('text').remove();
 
@@ -351,11 +336,14 @@ useEffect(() => {
             .append('circle')
             .attr('r', NODE_RADIUS)
             .attr('fill', (d) => {
-                
                 const neighbors = getNodeEdges(d.id).map((e) => (e.source.id === d.id ? e.target : e.source));
                 const hasHiddenNeighbors = neighbors.some((n) => collapsedNodes.has(n.id));
+
                 if (hasHiddenNeighbors) return 'lightgray';
-                return d.type === 'event' ? 'orange' : 'steelblue';
+
+                // --- UPDATED COLOR LOGIC ---
+                // d.label contains the Type name (e.g., 'Arrive' or 'Truck')
+                return getColorForObject(fileId, d.label);
             })
             .attr('stroke', '#fff')
             .attr('stroke-width', 1.5)
@@ -366,7 +354,6 @@ useEffect(() => {
                 setContextMenu({ x, y, node: d });
             });
 
-       
         nodeGroup.each(function (d) {
             const group = d3.select(this);
             const words = (d.label || '').split(/[\s_]+|(?=[A-Z])/g);
@@ -402,14 +389,8 @@ useEffect(() => {
                 .attr('y', (_, i) => offset + i * lineHeight)
                 .text((t) => t);
         });
+    }, [data, chunk, selectedType, collapsedNodes, updateFlag, fileId, getColorForObject]); // --- Added dependencies
 
-       
-    }, [data, chunk, selectedType, collapsedNodes, updateFlag]);
-
-
-
-    
- 
     return {
         collapsedNodes,
         contextMenu,
@@ -422,9 +403,3 @@ useEffect(() => {
         updateFlag,
     };
 };
-
-
-
-
-
-
