@@ -63,8 +63,6 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                     return getConnectedComponentsCN(fileId, selectedObjectType, newCaseNotionFileId);
                 case 'advanced':
                     return getAdvancedCN(fileId, selectedObjectType, newCaseNotionFileId);
-                    case 'generic':
-                    return getAdvancedCN(fileId, selectedObjectType, newCaseNotionFileId);
                 default:
                     throw new Error(`Unknown or unsupported algorithm: ${algorithm}`);
             }
@@ -107,6 +105,7 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
             });
 
             if (!res.ok) throw new Error('Generic case notion failed');
+            console.log(res.body);
             
         },
         onSuccess: (data) => {

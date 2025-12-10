@@ -38,7 +38,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
         console.log(localGraph);
 
         localGraph.links.forEach((l: any) => {
-           
             if (!l.deselected) return;
 
             const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
@@ -72,7 +71,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
         onGenericPayloadChange?.(payload);
     }, [localGraph, startingObjects, editable]);
 
-   
     useEffect(() => {
         if (!data) return;
 
@@ -112,7 +110,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
         setLocalGraph({ nodes, links });
     }, [data, caseNotionGraph]);
 
-   
     useEffect(() => {
         if (!localGraph || !svgRef.current || !containerRef.current) return;
 
@@ -125,12 +122,11 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
         const g = svg.attr('viewBox', `0 0 ${width} ${height}`).append('g');
 
         svg.call(
-            d3.zoom().on('zoom', (event) => {
+            d3.zoom<SVGSVGElement, unknown>().on('zoom', (event) => {
                 g.attr('transform', event.transform);
             })
         );
 
-       
         const simulation = d3
             .forceSimulation(localGraph.nodes)
             .force(
@@ -144,7 +140,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .force('center', d3.forceCenter(width / 2, height / 2))
             .force('collision', d3.forceCollide().radius(45));
 
-      
         const updateLinkStyles = () => {
             link.attr('stroke', (d: any) => (d.deselected ? '#C0C0C0' : 'black')).attr('stroke-opacity', (d: any) =>
                 d.deselected ? 0.35 : 0.85
@@ -165,7 +160,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             updateLinkStyles();
         };
 
-       
         const link = g
             .append('g')
             .selectAll('line')
@@ -178,14 +172,12 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .on('click', function (_, d: any) {
                 if (!editable) return;
                 d.deselected = !d.deselected;
-               
+
                 updateLinkStyles();
             });
 
-       
         const nodeColor = (d: any) => (d.deselected ? '#C0C0C0' : d.group === 'event' ? '#007BFF' : '#FF5F15');
 
-       
         const node = g
             .append('g')
             .selectAll('circle')
@@ -199,14 +191,11 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .on('click', function (event, d: any) {
                 if (!editable) return;
 
-               
                 if (d.group === 'object') {
-                   
                     if (event.shiftKey) {
                         d.deselected = !d.deselected;
                         updateConnectedLinks(d);
                     } else {
-                       
                         setStartingObjects((prev) =>
                             prev.includes(d.id) ? prev.filter((x) => x !== d.id) : [...prev, d.id]
                         );
@@ -220,7 +209,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
                     return;
                 }
 
-               
                 d.deselected = !d.deselected;
 
                 d3.select(this)
@@ -248,7 +236,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
                     })
             );
 
-       
         const label = g
             .append('g')
             .selectAll('text')
@@ -261,7 +248,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .attr('dy', 4)
             .attr('pointer-events', 'none');
 
-       
         simulation.on('tick', () => {
             link.attr('x1', (d: any) => d.source.x)
                 .attr('y1', (d: any) => d.source.y)
@@ -273,7 +259,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
         });
     }, [localGraph, editable, startingObjects]);
 
-   
     if (isLoading) return <div className="flex w-full h-full justify-center items-center">Loading...</div>;
     if (error)
         return <div className="flex w-full h-full justify-center items-center text-red-500">Failed to load graph</div>;
