@@ -51,6 +51,31 @@ export const useExploreEventHandlers = () => {
 
                     if (isMinerNode(node)) {
                         const neighbors = directedNeighborMap.current.get(id) || [];
+
+                        // Handle removed assets
+                        const removedAssets = currentAssets.filter(
+                            (oldAsset) => !newData.assets?.some((newAsset) => isEqual(newAsset, oldAsset))
+                        );
+
+                        removedAssets.forEach((removedAsset) => {
+                            if (removedAsset.io === 'output') {
+                                // Find neighbors that were created from this asset
+                                const neighborsToDelete = neighbors.filter((neighborId) => {
+                                    const neighborNode = getNode(neighborId);
+                                    return neighborNode?.data.assets.some(
+                                        (asset: BaseExploreNodeAsset) =>
+                                            asset.id === removedAsset.id && asset.io === 'input'
+                                    );
+                                });
+
+                                // Delete identified neighbors
+                                neighborsToDelete.forEach((neighborId) => {
+                                    onNodeDelete(neighborId);
+                                });
+                            }
+                        });
+
+                        // Handle new assets
                         const newAssets =
                             newData.assets?.filter(
                                 (newAsset) => !currentAssets.some((oldAsset) => isEqual(newAsset, oldAsset))
@@ -69,7 +94,7 @@ export const useExploreEventHandlers = () => {
 
                                 const newNode = NodeFactory.createNode(newNodePosition, nodeType);
                                 newNode.data.onDataChange = onNodeDataChange;
-                                newNode.data.assets = [asset]; // Keep original asset
+                                newNode.data.assets = [{ ...asset, io: 'input' }]; // Set as input for the new node
 
                                 addNode(newNode);
 
@@ -82,8 +107,10 @@ export const useExploreEventHandlers = () => {
                                 };
                                 onConnect(connection);
 
-                                if (!neighbors.includes(newNode.id)) {
-                                    directedNeighborMap.current.set(id, [...neighbors, newNode.id]);
+                                // Refresh neighbors list as it might have changed due to deletions
+                                const currentNeighbors = directedNeighborMap.current.get(id) || [];
+                                if (!currentNeighbors.includes(newNode.id)) {
+                                    directedNeighborMap.current.set(id, [...currentNeighbors, newNode.id]);
                                 }
                             }
                         });

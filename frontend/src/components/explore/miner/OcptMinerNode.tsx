@@ -21,7 +21,7 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         return node.data.assets.some((asset) => asset.io === 'output');
     }, [node.data.assets]);
 
-    const { isLoading, data } = useMineOcpt(fileId, algorithm, !hasMinedAsset);
+    const { isLoading, isFetching, data } = useMineOcpt(fileId, algorithm, !hasMinedAsset);
 
     useEffect(() => {
         const inputAsset = node.data.assets.find((asset) => asset.io === 'input');
@@ -47,11 +47,17 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         node.data.onDataChange(node.id, { assets: updatedAssets });
     }, [data, fileName]);
 
-    useMemo(() => {
+    useEffect(() => {
+        if (algorithm === node.data.algorithm) return;
+
+        const newAssets = node.data.assets.filter((asset) => asset.io !== 'output');
+
         const updatedData = {
             ...node.data,
+            assets: newAssets,
             algorithm: algorithm,
         };
+
         node.data.onDataChange(node.id, updatedData);
     }, [algorithm]);
 
@@ -120,7 +126,7 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
             ]}
             dropdownOptions={dropdownOptions}
             onDropdownAction={handleDropdownAction}
-            isLoading={isLoading}
+            isLoading={isLoading || isFetching}
             customActions={renderCustomActions()}
         />
     );
