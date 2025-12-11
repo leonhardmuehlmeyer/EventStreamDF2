@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useGetLogGraphs } from '~/services/queries';
 
 interface CaseGraphData {
@@ -17,6 +18,8 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
 
+    const { getColorForObject } = useExploreFlowStore();
+
     const { data, isLoading, error } = useGetLogGraphs(fileId);
 
     const graph = React.useMemo(() => {
@@ -29,7 +32,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             deselected?: boolean;
         }[] = [];
 
-        // Base event nodes
         data.event_types.forEach((et: string) => {
             nodes.push({
                 id: et,
@@ -38,7 +40,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             });
         });
 
-        // Base object nodes
         data.object_types.forEach((ot: string) => {
             nodes.push({
                 id: ot,
@@ -47,7 +48,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             });
         });
 
-        // Base arcs
         data.arcs.forEach((a: any) => {
             const isDeselected =
                 caseNotionGraph?.deselected_arcs?.some(
@@ -75,14 +75,12 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
 
         const g = svg.attr('viewBox', `0 0 ${width} ${height}`).append('g');
 
-        // Zoom
         svg.call(
             d3.zoom<SVGSVGElement, unknown>().on('zoom', (event) => {
                 g.attr('transform', event.transform);
             })
         );
 
-        // Force simulation
         const simulation = d3
             .forceSimulation(graph.nodes as any)
             .force(
@@ -95,7 +93,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             .force('charge', d3.forceManyBody().strength(-220))
             .force('center', d3.forceCenter(width / 2, height / 2));
 
-        // Draw links
         const link = g
             .append('g')
             .selectAll('line')
@@ -106,10 +103,22 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             .attr('stroke', (d: any) => (d.deselected ? '#C0C0C0' : 'black'))
             .attr('stroke-opacity', (d: any) => (d.deselected ? 0.4 : 0.8));
 
-        // Node colors
-        const getColor = (d: any) => {
-            if (d.deselected) return '#C0C0C0'; // grey
-            return d.group === 'event' ? '#007BFF' : '#FF5F15';
+        // --- NODE STYLING ---
+        const getFill = (d: any) => {
+            if (d.deselected) return '#C0C0C0';
+            // Objects (Types) get Global Color, Events (Activities) get White
+            return d.group === 'object' ? getColorForObject(fileId, d.id) : 'white';
+        };
+
+        const getStroke = (d: any) => {
+            if (d.deselected) return '#333';
+            // Events get Black border, Objects get White
+            return d.group === 'event' ? 'black' : '#fff';
+        };
+
+        const getStrokeWidth = (d: any) => {
+            // Thicker border for Events
+            return d.group === 'event' ? 2.5 : 1.5;
         };
 
         const node = g
@@ -118,10 +127,10 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             .data(graph.nodes)
             .enter()
             .append('circle')
-            .attr('r', 10)
-            .attr('fill', getColor)
-            .attr('stroke', '#333')
-            .attr('stroke-width', 1)
+            .attr('r', 12)
+            .attr('fill', getFill)
+            .attr('stroke', getStroke)
+            .attr('stroke-width', getStrokeWidth)
             .call(
                 d3
                     .drag<SVGCircleElement, any>()
@@ -141,7 +150,6 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
                     })
             );
 
-        // Labels
         const label = g
             .append('g')
             .selectAll('text')
@@ -150,8 +158,10 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
             .append('text')
             .text((d: any) => d.id)
             .attr('font-size', 10)
+            .attr('font-weight', '600')
             .attr('text-anchor', 'middle')
-            .attr('dy', -14);
+            .attr('dy', -18)
+            .attr('fill', '#333');
 
         simulation.on('tick', () => {
             link.attr('x1', (d: any) => d.source.x)
@@ -163,7 +173,7 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph }) => {
 
             label.attr('x', (d: any) => d.x).attr('y', (d: any) => d.y);
         });
-    }, [graph]);
+    }, [graph, fileId, getColorForObject]);
 
     if (isLoading) return <div className="flex w-full h-full justify-center items-center">Loading graph...</div>;
 
