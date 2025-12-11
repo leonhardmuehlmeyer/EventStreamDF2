@@ -149,19 +149,41 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             );
         };
 
+        // const updateConnectedLinks = (node: any) => {
+        //     localGraph.links.forEach((l: any) => {
+        //         const connected = l.source.id === node.id || l.target.id === node.id;
+
+        //         if (node.deselected && connected) {
+        //             l.deselected = true;
+        //         } else if (!node.deselected && connected) {
+        //             l.deselected = l.originalDeselected;
+        //         }
+        //     });
+
+        //     updateLinkStyles();
+        // };
+
+
         const updateConnectedLinks = (node: any) => {
-            localGraph.links.forEach((l: any) => {
-                const connected = l.source.id === node.id || l.target.id === node.id;
+    localGraph.links.forEach((l: any) => {
+       
+        // const srcId = typeof l.source === "object" ? l.source.id : l.source;
+        // const trgId = typeof l.target === "object" ? l.target.id : l.target;
 
-                if (node.deselected && connected) {
-                    l.deselected = true;
-                } else if (!node.deselected && connected) {
-                    l.deselected = l.originalDeselected;
-                }
-            });
+        // const connected = srcId === node.id || trgId === node.id;
+        const connected = l.source.id === node.id || l.target.id === node.id;
 
-            updateLinkStyles();
-        };
+        if (node.deselected && connected) {
+            l.deselected = true;
+        } else if (!node.deselected && connected) {
+            // l.deselected = l.originalDeselected;
+             l.deselected = false;
+        }
+    });
+
+    updateLinkStyles();
+};
+
 
         const link = g
             .append('g')
@@ -299,3 +321,7 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
 };
 
 export default GraphPage;
+
+
+
+
