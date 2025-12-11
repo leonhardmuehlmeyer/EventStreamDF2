@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { NodeProps } from '@xyflow/react';
-import { Loader2, Pickaxe } from 'lucide-react';
+import { FileSymlink, Loader2, Pickaxe } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Button } from '~/components/ui/button';
 import {
@@ -41,6 +41,7 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
     const [selectedObjectType, setSelectedObjectType] = useState<string>('default');
     const [currentCnFileId, setCurrentCnFileId] = useState<string>('');
     const [makeFinalFetch, setMakeFinalFetch] = useState<boolean>(false);
+    const [isDirty, setIsDirty] = useState<boolean>(false);
 
     const [genericPayload, setGenericPayload] = useState<any>(null);
 
@@ -74,6 +75,7 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
         },
         onSuccess: (data) => {
             console.log('Mining successful:', data);
+            setIsDirty(false);
         },
         onError: (error) => {
             console.error('Mining failed:', error);
@@ -166,10 +168,14 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                     <div className="flex flex-col w-1/3">
                         <p className="font-bold">Settings</p>
                         <div className="flex mt-2 ">
-                            <Select onValueChange={setSelectedAlgorithm} value={selectedAlgorithm}>
-                                <SelectTrigger
-                                    className={selectedAlgorithm === 'connected-component' ? 'w-full' : 'w-[180px]'}
-                                >
+                            <Select
+                                onValueChange={(val) => {
+                                    setSelectedAlgorithm(val);
+                                    setIsDirty(true);
+                                }}
+                                value={selectedAlgorithm}
+                            >
+                                <SelectTrigger className={selectedAlgorithm === 'connected-component' ? 'w-full' : ''}>
                                     <SelectValue placeholder="Select an algorithm" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -185,10 +191,13 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                             {selectedAlgorithm !== 'connected-component' && selectedAlgorithm !== 'generic' && (
                                 <Select
                                     value={selectedObjectType}
-                                    onValueChange={setSelectedObjectType}
+                                    onValueChange={(val) => {
+                                        setSelectedObjectType(val);
+                                        setIsDirty(true);
+                                    }}
                                     disabled={selectedAlgorithm === 'connected-component'}
                                 >
-                                    <SelectTrigger className="w-[180px] ml-2">
+                                    <SelectTrigger className="ml-2">
                                         <SelectValue placeholder="Select an object type" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -232,52 +241,64 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                                 {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pickaxe />}
                             </Button>
                         </div>
-                        <p className="font-bold mt-6">Measures</p>
                         {data && data.measures && data.measures.length > 0 && (
-                            <div className="mt-2 overflow-auto">
-                                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                                        <tr>
-                                            <th scope="col" className="px-6 py-3">
-                                                Measure
-                                            </th>
-                                            <th scope="col" className="px-6 py-3">
-                                                Value
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data.measures.map(
-                                            (measure: { name: string; value: number }, index: number) => (
-                                                <tr
-                                                    key={index}
-                                                    className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
-                                                >
-                                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-                                                        {measure.name}
-                                                    </td>
-                                                    <td className="px-6 py-4">{measure.value.toFixed(4)}</td>
-                                                </tr>
-                                            )
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                            <>
+                                <p className="font-bold mt-6">Measures</p>
+
+                                <div className="mt-2 overflow-auto">
+                                    <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                                        <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                                            <tr>
+                                                <th scope="col" className="px-6 py-3">
+                                                    Measure
+                                                </th>
+                                                <th scope="col" className="px-6 py-3">
+                                                    Value
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {data.measures.map(
+                                                (measure: { name: string; value: number }, index: number) => (
+                                                    <tr
+                                                        key={index}
+                                                        className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
+                                                    >
+                                                        <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+                                                            {measure.name}
+                                                        </td>
+                                                        <td className="px-6 py-4">{measure.value.toFixed(4)}</td>
+                                                    </tr>
+                                                )
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>
-                <DialogFooter className="flex justify-end">
-                    <Button onClick={handleFinalMineClick} disabled={makeFinalFetch && cnGet.isFetching}>
-                        {makeFinalFetch && cnGet.isFetching ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Mining...
-                            </>
-                        ) : (
-                            'Mine Case Notions'
-                        )}
-                    </Button>
-                </DialogFooter>
+                {data && data.measures && data.measures.length > 0 && (
+                    <DialogFooter className="flex justify-end">
+                        <Button
+                            variant={'outline'}
+                            onClick={handleFinalMineClick}
+                            disabled={(makeFinalFetch && cnGet.isFetching) || isDirty}
+                        >
+                            {makeFinalFetch && cnGet.isFetching ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Exporting...
+                                </>
+                            ) : (
+                                <>
+                                    <FileSymlink />
+                                    Export as Node
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                )}
             </DialogContent>
         </Dialog>
     );

@@ -1,61 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
-import { OcelVisualizationD3Props } from '~/components/graph_visualization/types';
-import { useGraphInteractions } from '~/components/graph_visualization/useGraphInteractions';
-import OcelCollectionSidebar from '~/components/OcelCollectionSidebar';
-import { useGetOcel, useGetOcelCollection } from '~/services/queries';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
+import { useExploreFlowStore } from '~/stores/exploreStore';
+import { useGetOcel } from '~/services/queries';
+import { OcelVisualizationD3Props } from './types';
+import { useGraphInteractions } from './useGraphInteractions';
 
 const MAX_CHUNK = 5;
 
-const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
-    fileId,
-    isFullScreen = false,
-    sourceType = 'ocelFileNode',
-}) => {
-    // Determine which hook to use
-    const isCollection = sourceType === 'ocelCollectionNode';
-    const isOcel = sourceType === 'ocelFileNode';
-
-    const { data: ocelData, isLoading: ocelLoading, error: ocelError } = useGetOcel(isOcel ? fileId : null);
-    const {
-        data: collectionData,
-        isLoading: collectionLoading,
-        error: collectionError,
-    } = useGetOcelCollection(isCollection ? fileId : null);
-
-    const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
-
-    const data = useMemo(() => {
-        if (
-            isCollection &&
-            collectionData?.case_ocels &&
-            collectionData.case_ocels.length > 0 &&
-            selectedCaseIndex < collectionData.case_ocels.length
-        ) {
-            return collectionData.case_ocels[selectedCaseIndex];
-        }
-        return ocelData;
-    }, [isCollection, collectionData, ocelData, selectedCaseIndex]);
-
-    const isLoading = isCollection ? collectionLoading : ocelLoading;
-    const error = isCollection ? collectionError : ocelError;
+const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({ fileId, isFullScreen = false }) => {
+    const { data, isLoading, error } = useGetOcel(fileId);
+    const { getColorForObject } = useExploreFlowStore();
 
     const svgRef = useRef<SVGSVGElement | null>(null);
     const eventsChartRef = useRef<SVGSVGElement | null>(null);
     const objectsChartRef = useRef<SVGSVGElement | null>(null);
 
     const [chunk, setChunk] = useState(1);
-
     const [selectedType, setSelectedType] = useState<string>('__ALL__');
 
     const { collapsedNodes, contextMenu, setContextMenu, handleCollapse, handleExpand, handleTypeChange, updateFlag } =
-        useGraphInteractions(data, selectedType, setSelectedType, chunk, setChunk, svgRef);
+        useGraphInteractions(fileId, data, selectedType, setSelectedType, chunk, setChunk, svgRef);
 
     useEffect(() => {
         if (!data) return;
         const tooltip = d3
             .select('body')
-
             .append('div')
             .attr('class', 'd3-tooltip')
             .style('position', 'absolute')
@@ -67,10 +37,10 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
             .style('pointer-events', 'none')
             .style('opacity', 0);
 
-        const createHistogram = (ref: SVGSVGElement, dataArr: [string, number][], fillColor: string) => {
+        const createHistogram = (ref: SVGSVGElement, dataArr: [string, number][], colorFn: (key: string) => string) => {
             const svg = d3.select(ref);
             svg.selectAll('*').remove();
-            // Recalculate dimensions for proper resizing
+
             const width = svg.node()?.clientWidth || 250;
             const height = svg.node()?.clientHeight || 200;
 
@@ -95,7 +65,7 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
                 .attr('y', ([, v]) => y(v))
                 .attr('width', x.bandwidth())
                 .attr('height', ([, v]) => y(0) - y(v))
-                .attr('fill', fillColor)
+                .attr('fill', ([key]) => colorFn(key))
                 .on('mouseover', (event, [, v]) => tooltip.style('opacity', 1).html(`<strong>Count:</strong> ${v}`))
                 .on('mousemove', (event) =>
                     tooltip.style('left', event.pageX + 10 + 'px').style('top', event.pageY - 20 + 'px')
@@ -124,14 +94,17 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
             (d: any) => d.type || 'Unknown'
         );
 
-        // Only render histograms if not in full screen and not a collection
-        if (!isFullScreen && !isCollection) {
-            if (eventsChartRef.current) createHistogram(eventsChartRef.current, activityCounts, 'orange');
-            if (objectsChartRef.current) createHistogram(objectsChartRef.current, typeCounts, 'steelblue');
+        if (!isFullScreen) {
+            // Events per activity graph: Dark Grey
+            if (eventsChartRef.current) createHistogram(eventsChartRef.current, activityCounts, () => '#b6b8bcff');
+
+            // Objects per type: Colored
+            if (objectsChartRef.current)
+                createHistogram(objectsChartRef.current, typeCounts, (k) => getColorForObject(fileId, k));
         }
 
         return () => tooltip.remove();
-    }, [data, isFullScreen]); // Added isFullScreen to dependency array
+    }, [data, isFullScreen, fileId, getColorForObject]);
 
     const eventTypes: string[] = Array.isArray(data?.eventTypes)
         ? data!.eventTypes.map((t: any) => (typeof t === 'string' ? t : t.name))
@@ -142,77 +115,80 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
     if (error) return <p>Error loading OCEL data</p>;
     if (!data) return <p>No data available</p>;
 
-    const gridLayoutClass = isFullScreen || isCollection ? 'grid-cols-1' : 'grid-cols-4'; // Dynamic grid layout
+    const gridLayoutClass = isFullScreen ? 'grid-cols-1' : 'grid-cols-4';
 
     return (
-        <div className="flex flex-row w-full h-full overflow-hidden">
-            <div className="flex flex-col flex-1 h-full overflow-hidden">
-                {contextMenu && (
-                    <div
-                        className="absolute bg-white border border-gray-300 shadow-lg rounded-md text-sm z-50"
-                        style={{ left: contextMenu.x + 20, top: contextMenu.y }}
+        <div className="flex flex-col w-full h-full overflow-hidden">
+            {contextMenu && (
+                <div
+                    className="absolute bg-white border border-gray-300 shadow-lg rounded-md text-sm z-50"
+                    style={{ left: contextMenu.x + 20, top: contextMenu.y }}
+                >
+                    <button
+                        className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                        onClick={() => handleCollapse(contextMenu.node.id)}
                     >
-                        <button
-                            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
-                            onClick={() => handleCollapse(contextMenu.node.id)}
-                        >
-                            Collapse
-                        </button>
-                        <button
-                            className="block w-full text-left px-3 py-1 hover:bg-gray-100"
-                            onClick={() => handleExpand(contextMenu.node.id)}
-                        >
-                            Expand
-                        </button>
-                    </div>
-                )}
-
-                {/* Layout fix: grid container uses flex-1 to take remaining vertical space */}
-                <div className={`grid ${gridLayoutClass} gap-4 p-4 flex-1 overflow-auto`}>
-                    {/* Main Graph Column: flex flex-col to manage inner vertical space, dynamic col-span */}
-                    <div
-                        className={`bg-white rounded-xl shadow p-3 relative flex flex-col ${isFullScreen || isCollection ? 'col-span-4' : 'col-span-3'}`}
+                        Collapse
+                    </button>
+                    <button
+                        className="block w-full text-left px-3 py-1 hover:bg-gray-100"
+                        onClick={() => handleExpand(contextMenu.node.id)}
                     >
-                        {/* Layout fix: SVG element uses flex-1 for height, min-h-0 prevents overflow */}
-                        <svg ref={svgRef} className="w-full flex-1 min-h-0 border rounded-lg bg-gray-50" />
+                        Expand
+                    </button>
+                </div>
+            )}
 
-                        {chunk * MAX_CHUNK < (data.events?.length || 0) && (
-                            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                                <button
-                                    onClick={() => setChunk((prev) => prev + 1)}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600"
-                                >
-                                    Load More Events ({chunk * MAX_CHUNK}/{data.events.length})
-                                </button>
-                            </div>
-                        )}
-                    </div>
+            <div className="border-b border-gray-200 p-4 bg-white shadow-sm flex flex-wrap gap-3 items-center">
+                <h2 className="font-bold text-gray-700 mr-2">Filter by Event Type:</h2>
 
-                    {/* Histogram Column: Render only if NOT in full screen and NOT a collection */}
-                    {!isFullScreen && !isCollection && (
-                        <div className="col-span-1 flex flex-col gap-4">
-                            <div className="bg-white rounded-xl shadow p-3 flex-1 flex flex-col">
-                                <h3 className="font-semibold mb-2 text-center text-gray-700">Events per Activity</h3>
-                                <svg ref={eventsChartRef} className="w-full h-auto flex-1" />
-                            </div>
-                            <div className="bg-white rounded-xl shadow p-3 flex-1 flex flex-col">
-                                <h3 className="font-semibold mb-2 text-center text-gray-700">Objects per Type</h3>
-                                <svg ref={objectsChartRef} className="w-full h-auto flex-1" />
-                            </div>
+                <Select value={selectedType} onValueChange={(val) => handleTypeChange(val)}>
+                    <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filter by Event Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="__ALL__">All types</SelectItem>
+                        {eventTypes.map((t) => (
+                            <SelectItem key={t} value={t}>
+                                {t}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
+
+            <div className={`grid ${gridLayoutClass} gap-4 p-4 flex-1 overflow-auto`}>
+                <div
+                    className={`bg-white rounded-xl shadow p-3 relative flex flex-col ${isFullScreen ? 'col-span-4' : 'col-span-3'}`}
+                >
+                    <h3 className="font-semibold mb-2 text-center text-gray-700">Event–Object Relationship Graph</h3>
+                    <svg ref={svgRef} className="w-full flex-1 min-h-0 border rounded-lg bg-gray-50" />
+
+                    {chunk * MAX_CHUNK < (data.events?.length || 0) && (
+                        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                            <button
+                                onClick={() => setChunk((prev) => prev + 1)}
+                                className="px-4 py-2 bg-blue-500 text-white rounded shadow hover:bg-blue-600"
+                            >
+                                Load More Events ({chunk * MAX_CHUNK}/{data.events.length})
+                            </button>
                         </div>
                     )}
                 </div>
-            </div>
 
-            <OcelCollectionSidebar
-                isCollection={isCollection}
-                selectedType={selectedType}
-                eventTypes={eventTypes}
-                handleTypeChange={handleTypeChange}
-                selectedCaseIndex={selectedCaseIndex}
-                setSelectedCaseIndex={setSelectedCaseIndex}
-                caseCount={collectionData?.case_ocels?.length || 0}
-            />
+                {!isFullScreen && (
+                    <div className="col-span-1 flex flex-col gap-4">
+                        <div className="bg-white rounded-xl shadow p-3 flex-1 flex flex-col">
+                            <h3 className="font-semibold mb-2 text-center text-gray-700">Events per Activity</h3>
+                            <svg ref={eventsChartRef} className="w-full h-auto flex-1" />
+                        </div>
+                        <div className="bg-white rounded-xl shadow p-3 flex-1 flex flex-col">
+                            <h3 className="font-semibold mb-2 text-center text-gray-700">Objects per Type</h3>
+                            <svg ref={objectsChartRef} className="w-full h-auto flex-1" />
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

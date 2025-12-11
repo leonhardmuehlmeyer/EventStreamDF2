@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useGetLogGraphs } from '~/services/queries';
 
 interface CaseGraphData {
@@ -18,6 +19,8 @@ interface GraphPageProps {
 const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable = false, onGenericPayloadChange }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
+
+    const { getColorForObject } = useExploreFlowStore();
 
     const { data, isLoading, error } = useGetLogGraphs(fileId);
 
@@ -172,11 +175,24 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .on('click', function (_, d: any) {
                 if (!editable) return;
                 d.deselected = !d.deselected;
-
-                updateLinkStyles();
             });
+        // --- NODE STYLING ---
+        const getFill = (d: any) => {
+            if (d.deselected) return '#C0C0C0';
+            // Objects (Types) get Global Color, Events (Activities) get White
+            return d.group === 'object' ? getColorForObject(fileId, d.id) : 'white';
+        };
 
-        const nodeColor = (d: any) => (d.deselected ? '#C0C0C0' : d.group === 'event' ? '#007BFF' : '#FF5F15');
+        const getStroke = (d: any) => {
+            if (d.deselected) return '#333';
+            // Events get Black border, Objects get White
+            return d.group === 'event' ? 'black' : '#fff';
+        };
+
+        const getStrokeWidth = (d: any) => {
+            // Thicker border for Events
+            return d.group === 'event' ? 2.5 : 1.5;
+        };
 
         const node = g
             .append('g')
@@ -184,40 +200,10 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .data(localGraph.nodes)
             .enter()
             .append('circle')
-            .attr('r', 26)
-            .attr('fill', nodeColor)
-            .attr('stroke-width', 3)
-            .attr('stroke', (d: any) => (startingObjects.includes(d.id) ? 'black' : '#222'))
-            .attr('stroke-width', (d: any) => (startingObjects.includes(d.id) ? 6 : 3))
-            .on('click', function (event, d: any) {
-                if (!editable) return;
-
-                if (d.group === 'object') {
-                    if (event.shiftKey) {
-                        d.deselected = !d.deselected;
-                        updateConnectedLinks(d);
-                    } else {
-                        setStartingObjects((prev) =>
-                            prev.includes(d.id) ? prev.filter((x) => x !== d.id) : [...prev, d.id]
-                        );
-                    }
-
-                    d3.select(this)
-                        .attr('fill', nodeColor(d))
-                        .attr('stroke', startingObjects.includes(d.id) ? 'black' : '#222')
-                        .attr('stroke-opacity', d.deselected ? 0.35 : 1);
-
-                    return;
-                }
-
-                d.deselected = !d.deselected;
-
-                d3.select(this)
-                    .attr('fill', nodeColor(d))
-                    .attr('stroke-opacity', d.deselected ? 0.35 : 1);
-
-                updateConnectedLinks(d);
-            })
+            .attr('r', 12)
+            .attr('fill', getFill)
+            .attr('stroke', getStroke)
+            .attr('stroke-width', getStrokeWidth)
             .call(
                 d3
                     .drag<SVGCircleElement, any>()
@@ -244,10 +230,11 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             .enter()
             .append('text')
             .text((d: any) => d.id)
-            .attr('font-size', 12)
+            .attr('font-size', 10)
+            .attr('font-weight', '600')
             .attr('text-anchor', 'middle')
-            .attr('dy', 4)
-            .attr('pointer-events', 'none');
+            .attr('dy', -18)
+            .attr('fill', '#333');
 
         simulation.on('tick', () => {
             link.attr('x1', (d: any) => d.source.x)
@@ -258,7 +245,10 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             node.attr('cx', (d: any) => d.x).attr('cy', (d: any) => d.y);
             label.attr('x', (d: any) => d.x).attr('y', (d: any) => d.y);
         });
-    }, [localGraph, editable, startingObjects]);
+    }, [localGraph, editable, startingObjects, fileId, getColorForObject]);
+    
+
+    if (isLoading) return <div className="flex w-full h-full justify-center items-center">Loading graph...</div>;
 
     if (isLoading) return <div className="flex w-full h-full justify-center items-center">Loading...</div>;
     if (error)

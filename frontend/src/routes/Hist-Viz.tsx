@@ -5,7 +5,6 @@ import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
-//imports for filters
 import { Popover, PopoverContent, PopoverTrigger } from '~/components/ui/popover';
 import { ScrollArea, ScrollBar } from '~/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
@@ -16,7 +15,6 @@ import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useSetFilteredHistogramMutation } from '~/services/mutation';
 import { useGetHistogram } from '~/services/queries';
 import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
-// Adjusted import to standard path
 import '~/styles/hist-viz.css';
 import type { HistogramEntry } from '~/types';
 
@@ -28,26 +26,20 @@ export default function HistViz() {
     const { data } = useGetHistogram(fileId);
     const { mutate: setFilteredHistogram } = useSetFilteredHistogramMutation();
 
-    // --- State for case and object filters ---
     const [allEventTypes, setAllEventTypes] = useState<string[]>([]);
     const [allObjectTypes, setAllObjectTypes] = useState<string[]>([]);
     const [selectedEventTypes, setSelectedEventTypes] = useState(new Set<string>());
     const [selectedObjectTypes, setSelectedObjectTypes] = useState(new Set<string>());
     const [eventSearch, setEventSearch] = useState('');
     const [objectSearch, setObjectSearch] = useState('');
-    // -----------------------------
 
-    // Holds selection state for all histograms
     const [allSelections, setAllSelections] = useState<Record<string, number[]>>({});
-    // Toggles between editing and submitted/locked view
     const [isEditing, setIsEditing] = useState(true);
-    // -----------------------------
 
-    // ---Access histogramStates from store ---
-    const { getNode, histogramStates, setHistogramState } = useExploreFlowStore();
+    // Get color store
+    const { getNode, histogramStates, setHistogramState, getColorForObject } = useExploreFlowStore();
     const node = nodeId ? getNode(nodeId) : undefined;
 
-    // Obtain the fileId from the input asset
     useMemo(() => {
         if (node) {
             const inputFile = node.data.assets.find((asset) => asset.io === 'input');
@@ -59,26 +51,18 @@ export default function HistViz() {
 
     useEffect(() => {
         if (!data) return;
-
         try {
-            // Populate filter options from the data received from backend
             const eventTypes = new Set<string>();
             const objectTypes = new Set<string>();
-
             for (const entry of data.histograms) {
-                // --- Populate filters ---
                 eventTypes.add(entry.event_type);
                 objectTypes.add(entry.object_type);
             }
-
-            // --- Set filter data ---
             const sortedEventTypes = Array.from(eventTypes).sort();
             const sortedObjectTypes = Array.from(objectTypes).sort();
 
             setAllEventTypes(sortedEventTypes);
             setAllObjectTypes(sortedObjectTypes);
-
-            // Negative selection for filters
             setSelectedEventTypes(new Set(sortedEventTypes));
             setSelectedObjectTypes(new Set(sortedObjectTypes));
         } catch (error) {
@@ -86,19 +70,13 @@ export default function HistViz() {
         }
     }, [data]);
 
-    // --- Initialize selections from Store if available, else Default ---
     useEffect(() => {
         if (!data || !nodeId) return;
-
-        //  Check if we have saved state in the store for this node
         const savedState = histogramStates[nodeId];
-
         if (savedState) {
-            // Restore saved selections and locked state
             setAllSelections(savedState.selections);
             setIsEditing(!savedState.isSubmitted);
         } else {
-            // Default Behavior: Select All, Edit Mode = true
             const defaultSelections: Record<string, number[]> = {};
             data.histograms.forEach((entry) => {
                 const chartKey = `${entry.event_type}|${entry.object_type}`;
@@ -109,17 +87,12 @@ export default function HistViz() {
             setIsEditing(true);
         }
     }, [data, nodeId, histogramStates]);
-    // -------------------------------------------------------------------------
 
-    // Filter Handlers in callback
     const handleEventTypeSelect = useCallback((eventType: string) => {
         setSelectedEventTypes((prev) => {
             const next = new Set(prev);
-            if (next.has(eventType)) {
-                next.delete(eventType);
-            } else {
-                next.add(eventType);
-            }
+            if (next.has(eventType)) next.delete(eventType);
+            else next.add(eventType);
             return next;
         });
     }, []);
@@ -127,45 +100,32 @@ export default function HistViz() {
     const handleObjectTypeSelect = useCallback((objectType: string) => {
         setSelectedObjectTypes((prev) => {
             const next = new Set(prev);
-            if (next.has(objectType)) {
-                next.delete(objectType);
-            } else {
-                next.add(objectType);
-            }
+            if (next.has(objectType)) next.delete(objectType);
+            else next.add(objectType);
             return next;
         });
     }, []);
 
-    // Dynamic sorting options for the user
     const rows = useMemo(() => {
         if (!data) return [];
-
-        // --- Apply Case/Object filters first ---
         const filteredHistograms = data.histograms.filter(
             (h) => selectedEventTypes.has(h.event_type) && selectedObjectTypes.has(h.object_type)
         );
-        // -------------------------------------------
-
-        // ---Group by event type (using filtered data) ---
         const byEvent = new Map<string, HistogramEntry[]>();
         for (const h of filteredHistograms) {
             if (!byEvent.has(h.event_type)) byEvent.set(h.event_type, []);
             byEvent.get(h.event_type)!.push(h);
         }
-        // Create sortable rows: [eventType, entries, totalBins]
         const sortableRows = [...byEvent.entries()].map(([evt, arr]) => {
             const totalBins = arr.reduce((sum, e) => sum + (e.histogram?.length || 0), 0);
             return [evt, arr, totalBins] as const;
         });
-        // Sort according to the selected mode
         switch (sortMode) {
             case 'name':
                 sortableRows.sort((a, b) => a[0].localeCompare(b[0]));
                 break;
             case 'bins':
-                // Sort by total bins desc
                 sortableRows.sort((a, b) => b[2] - a[2]);
-                // Sort within each event by histogram length desc
                 for (const [, entries] of sortableRows) {
                     entries.sort((a, b) => (b.histogram?.length || 0) - (a.histogram?.length || 0));
                 }
@@ -175,9 +135,8 @@ export default function HistViz() {
                 break;
         }
         return sortableRows.map(([evt, arr]) => [evt, arr] as const);
-    }, [data, sortMode, selectedEventTypes, selectedObjectTypes]); // --- Added filter state dependencies ---
+    }, [data, sortMode, selectedEventTypes, selectedObjectTypes]);
 
-    // Merges sorted numbers into consecutive ranges as per requirement of the backend
     const mergeToRanges = (counts: number[]): [number, number][] => {
         if (counts.length === 0) return [];
         const sortedCounts = [...counts].sort((a, b) => a - b);
@@ -196,8 +155,7 @@ export default function HistViz() {
         ranges.push([start, end]);
         return ranges;
     };
-    // ----------------------
-    // --- HANDLER for updating state ---
+
     const handleSelectionChange = (chartKey: string, indices: number[]) => {
         setAllSelections((prev) => ({
             ...prev,
@@ -207,16 +165,12 @@ export default function HistViz() {
 
     const handleSubmit = () => {
         if (!data || !nodeId) return;
-        setIsEditing(false); // Lock the charts
-
-        // --- Persist state to store ---
+        setIsEditing(false);
         setHistogramState(nodeId, {
             selections: allSelections,
             isSubmitted: true,
         });
-        // -------------------------------------
 
-        // Find the original histogram data by its key for easy lookup
         const dataMap = new Map<string, HistogramEntry>(
             data.histograms.map((h) => [`${h.event_type}|${h.object_type}`, h])
         );
@@ -225,31 +179,20 @@ export default function HistViz() {
                 const [event_type, object_type] = chartKey.split('|');
                 const originalEntry = dataMap.get(chartKey);
 
-                // (prevents submitting selections for charts that are filtered out by the dropdowns)
                 if (!originalEntry || !selectedEventTypes.has(event_type) || !selectedObjectTypes.has(object_type)) {
                     return null;
                 }
-                // --------------------------------------------------------
 
-                // if (selectedIndices.length === 0) {
-                //     return null;
-                // }
-                // If selection is empty (user cleared it), explicitly return empty ranges array
                 if (selectedIndices.length === 0) {
                     return {
                         event_type,
                         object_type,
-                        ranges: [], // <--- Explicitly send empty range
+                        ranges: [],
                     };
                 }
-                // Map selected indices back to their 'count' values
-                const selectedCounts = selectedIndices.map((index) => originalEntry.histogram[index].count);
-                // Merge consecutive counts into ranges
-                const ranges = mergeToRanges(selectedCounts);
 
-                // // --- Don't submit if ranges are empty ---
-                // if (ranges.length === 0) return null;
-                // // ---------------------------------------------
+                const selectedCounts = selectedIndices.map((index) => originalEntry.histogram[index].count);
+                const ranges = mergeToRanges(selectedCounts);
 
                 return {
                     event_type,
@@ -257,12 +200,12 @@ export default function HistViz() {
                     ranges,
                 };
             })
-            .filter((f): f is Exclude<typeof f, null> => f !== null); // Remove nulls
-        // Construct the final payload in the expected format
+            .filter((f): f is Exclude<typeof f, null> => f !== null);
+
         const finalPayload = {
             selections: [
                 {
-                    name: `histogram_selection_${new Date().toISOString()}`, // Dynamic name
+                    name: `histogram_selection_${new Date().toISOString()}`,
                     filters: filters,
                 },
             ],
@@ -273,7 +216,6 @@ export default function HistViz() {
             {
                 onSuccess: (data) => {
                     console.log(data);
-
                     const newAsset: BaseExploreNodeAsset = {
                         id: data[0],
                         io: 'output',
@@ -281,11 +223,9 @@ export default function HistViz() {
                         type: 'ocelFile',
                         name: `ocel_${data[0]}`,
                     };
-
                     if (node && nodeId) {
-                        const otherAssets = node.data.assets.filter((asset) => asset.io !== 'output'); // This ensures we replace the old output file instead of appending a new one.
+                        const otherAssets = node.data.assets.filter((asset) => asset.io !== 'output');
                         const updatedAssets = [...otherAssets, newAsset];
-                        // const updatedAssets = [...node.data.assets, newAsset];
                         node.data.onDataChange(nodeId, { assets: updatedAssets });
                     }
                     navigate('/data/pipeline/explore');
@@ -294,11 +234,9 @@ export default function HistViz() {
         );
     };
 
-    // Handle Unlocking for Edit
     const handleEditClick = () => {
         setIsEditing(true);
         if (nodeId) {
-            // Update store to reflect we are editing again
             setHistogramState(nodeId, {
                 selections: allSelections,
                 isSubmitted: false,
@@ -314,15 +252,14 @@ export default function HistViz() {
                     {!data ? (
                         <div style={{ padding: 20 }}>Loading histograms…</div>
                     ) : (
-                        // --- Added pb-[80px] for footer spacing to have the submit button ---
                         <div className="hv-page w-full flex flex-col h-full pb-[80px]">
                             <header className="hv-topbar flex justify-between items-center">
                                 <div>
                                     <h1 className="hv-h1">Histograms</h1>
                                     <h2 className="hv-h2">Event wise histograms</h2>
                                 </div>
-                                {/* --- Added filter buttons --- */}
                                 <div className="flex items-center gap-2 mr-6">
+                                    {/* Activity Filter: No colors */}
                                     <FilterDropdown
                                         title="Activity Filter"
                                         items={allEventTypes}
@@ -330,8 +267,9 @@ export default function HistViz() {
                                         onItemSelect={handleEventTypeSelect}
                                         search={eventSearch}
                                         setSearch={setEventSearch}
-                                        isEditing={isEditing} // ---Pass isEditing prop to stop the popup to collapse ---
+                                        isEditing={isEditing}
                                     />
+                                    {/* Type Filter: With color function */}
                                     <FilterDropdown
                                         title="Type Filter"
                                         items={allObjectTypes}
@@ -339,13 +277,13 @@ export default function HistViz() {
                                         onItemSelect={handleObjectTypeSelect}
                                         search={objectSearch}
                                         setSearch={setObjectSearch}
-                                        isEditing={isEditing} // --- Pass isEditing prop to stop the popup to collapse ---
+                                        isEditing={isEditing}
+                                        getColor={(type) => getColorForObject(fileId!, type)}
                                     />
-                                    {/* Sorting dropdown */}
                                     <Select
                                         value={sortMode}
                                         onValueChange={(val: 'name' | 'bins' | 'random') => setSortMode(val)}
-                                        disabled={!isEditing} // to implement the edit and lock behaviour
+                                        disabled={!isEditing}
                                     >
                                         <SelectTrigger className="w-[180px]">
                                             <SelectValue placeholder="Sort by..." />
@@ -357,17 +295,13 @@ export default function HistViz() {
                                         </SelectContent>
                                     </Select>
                                 </div>
-                                {/* --------------------------------------- */}
                             </header>
-                            {/* --- WRAPPED MAIN CONTENT IN SCROLL AREA --- */}
                             <ScrollArea className="flex-1">
                                 <main className="hv-board p-4">
-                                    {/* ---Added check for empty rows --- */}
                                     {rows.length > 0 ? (
                                         rows.map(([event, entries]) => (
                                             <section className="hv-row" key={event}>
                                                 <div className="hv-row-title">Event: {event}</div>
-                                                {/* --- SCROLLAREA --- */}
                                                 <ScrollArea className="hv-row-scroller">
                                                     <div className="hv-cards">
                                                         {entries.map((e) => {
@@ -381,16 +315,13 @@ export default function HistViz() {
                                                                         handleSelectionChange(chartKey, indices)
                                                                     }
                                                                     isEditing={isEditing}
-                                                                    fileId={fileId || ''} // --- CHANGED: Pass fileId for colors ---
+                                                                    fileId={fileId || ''}
                                                                 />
                                                             );
-                                                            // --------------
                                                         })}
                                                     </div>
-                                                    {/* --- HORIZONTAL SCROLLBAR --- */}
                                                     <ScrollBar orientation="horizontal" />
                                                 </ScrollArea>
-                                                {/* ------------------------------------------- */}
                                             </section>
                                         ))
                                     ) : (
@@ -398,16 +329,12 @@ export default function HistViz() {
                                             No histograms match your filter criteria.
                                         </div>
                                     )}
-                                    {/* --------------------------------------------- */}
                                 </main>
-                                {/* --- VERTICAL SCROLLBAR --- */}
                                 <ScrollBar orientation="vertical" />
                             </ScrollArea>
-                            {/* ------------------------------------------- */}
                         </div>
                     )}
                 </div>
-                {/* --- SUBMIT/EDIT FOOTER --- */}
                 {data && (
                     <div className="absolute bottom-0 left-0 w-full h-[70px] bg-white border-t border-gray-200 flex items-center justify-end px-8 shadow-inner-top z-10">
                         {isEditing ? (
@@ -424,7 +351,6 @@ export default function HistViz() {
                         )}
                     </div>
                 )}
-                {/* --------------------------- */}
             </div>
         </SidebarProvider>
     );
@@ -435,14 +361,14 @@ interface HistogramCardProps {
     selectedIdx: number[];
     onSelect: (indices: number[]) => void;
     isEditing: boolean;
-    fileId: string; // Prop required for color lookups
+    fileId: string;
 }
 function HistogramCard({ entry, selectedIdx, onSelect, isEditing, fileId }: HistogramCardProps) {
     const chartId = `${entry.event_type}_${entry.object_type}`;
     return (
         <HistogramChart
             id={chartId}
-            fileId={fileId} //Pass fileId to Chart
+            fileId={fileId}
             bins={entry.histogram.map((b) => ({ x: b.count, y: b.frequency }))}
             selectedIdx={selectedIdx}
             onSelect={onSelect}
@@ -453,10 +379,7 @@ function HistogramCard({ entry, selectedIdx, onSelect, isEditing, fileId }: Hist
     );
 }
 
-// --- Filter Dropdown Component ---
-// --- This component is now defined at the top level of the module ---
-// --- This prevents it from losing state when its parent (HistViz) re-renders ---
-
+// --- Updated Filter Dropdown ---
 interface FilterDropdownProps {
     title: string;
     items: string[];
@@ -464,7 +387,8 @@ interface FilterDropdownProps {
     onItemSelect: (item: string) => void;
     search: string;
     setSearch: (value: string) => void;
-    isEditing: boolean; // --- ADDED isEditing to pass to the button ---
+    isEditing: boolean;
+    getColor?: (item: string) => string; // Optional: Only provided for Type Filter
 }
 
 const FilterDropdown = ({
@@ -474,14 +398,14 @@ const FilterDropdown = ({
     onItemSelect,
     search,
     setSearch,
-    isEditing, // --- Destructure isEditing ---
+    isEditing,
+    getColor,
 }: FilterDropdownProps) => {
     const filteredItems = items.filter((item) => item.toLowerCase().includes(search.toLowerCase()));
 
     return (
         <Popover>
             <PopoverTrigger asChild>
-                {/* --- Pass disabled prop from isEditing --- */}
                 <Button variant="outline" className="justify-between w-[180px]" disabled={!isEditing}>
                     <span>{title}</span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
@@ -498,18 +422,33 @@ const FilterDropdown = ({
                 </div>
                 <ScrollArea className="h-48">
                     <div className="p-2 space-y-2">
-                        {filteredItems.map((item) => (
-                            <div key={item} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={item}
-                                    checked={selectedItems.has(item)}
-                                    onCheckedChange={() => onItemSelect(item)}
-                                />
-                                <Label htmlFor={item} className="font-normal">
-                                    {item}
-                                </Label>
-                            </div>
-                        ))}
+                        {filteredItems.map((item) => {
+                            const isSelected = selectedItems.has(item);
+                            const color = getColor ? getColor(item) : undefined;
+
+                            return (
+                                <div key={item} className="flex items-center space-x-2">
+                                    <Checkbox
+                                        id={item}
+                                        checked={isSelected}
+                                        onCheckedChange={() => onItemSelect(item)}
+                                        // If color is provided and item is selected, color the checkbox
+                                        style={
+                                            isSelected && color
+                                                ? {
+                                                      backgroundColor: color,
+                                                      borderColor: color,
+                                                      color: 'white',
+                                                  }
+                                                : undefined
+                                        }
+                                    />
+                                    <Label htmlFor={item} className="font-normal cursor-pointer">
+                                        {item}
+                                    </Label>
+                                </div>
+                            );
+                        })}
                     </div>
                 </ScrollArea>
             </PopoverContent>
