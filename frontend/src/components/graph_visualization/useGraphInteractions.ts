@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { getDanglingNeighbors, getImmediateNeighbors } from './graphUtils';
@@ -17,7 +17,8 @@ export const useGraphInteractions = (
     setChunk: React.Dispatch<React.SetStateAction<number>>,
     svgRef: React.RefObject<SVGSVGElement | null>
 ) => {
-    const { getColorForObject } = useExploreFlowStore();
+    // Extract Store Actions
+    const { getColorForObject, initializeDataState } = useExploreFlowStore();
 
     const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
     const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
@@ -27,8 +28,30 @@ export const useGraphInteractions = (
     const edgesRef = useRef<EdgeDatum[]>([]);
     const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
     const zoomTransformRef = useRef<d3.ZoomTransform | null>(null);
-
     const expandedNodeIdsRef = useRef<Set<string>>(new Set());
+
+    // --- Reliable Map of ID -> Object Type ---
+    const objectTypeLookup = useMemo(() => {
+        const map = new Map<string, string>();
+        if (!data || !data.objects) return map;
+
+        const processObj = (id: string, obj: any) => {
+            const type = obj.type || obj.objectType || obj.object_type || 'Unknown';
+            map.set(id, type);
+        };
+
+        if (Array.isArray(data.objects)) {
+            data.objects.forEach((obj: any) => {
+                const id = obj.id || obj.objectId || obj.object_id;
+                if (id) processObj(id.toString(), obj);
+            });
+        } else {
+            Object.entries(data.objects).forEach(([id, obj]: [string, any]) => {
+                processObj(id, obj);
+            });
+        }
+        return map;
+    }, [data]);
 
     const getNodeEdges = (nodeId: string) =>
         edgesRef.current.filter((e) => e.source.id === nodeId || e.target.id === nodeId);
@@ -39,7 +62,6 @@ export const useGraphInteractions = (
             if (!node) return;
 
             const newCollapsed = new Set(collapsedNodes);
-
             const danglingNeighbors = getDanglingNeighbors(nodeId, edgesRef.current);
             danglingNeighbors.forEach((n) => newCollapsed.add(n.id));
 
@@ -118,10 +140,10 @@ export const useGraphInteractions = (
                     const angle = (index / totalRelationships) * 2 * Math.PI;
 
                     if (!objNode) {
-                        const objectDetails = data.objects ? data.objects[objId] : null;
+                        const type = objectTypeLookup.get(objId) || objId;
                         objNode = {
                             id: objId,
-                            label: objectDetails?.type || objId,
+                            label: type,
                             type: 'object',
                             x: node.x! + RADIUS * Math.cos(angle),
                             y: node.y! + RADIUS * Math.sin(angle),
@@ -149,11 +171,58 @@ export const useGraphInteractions = (
             setContextMenu(null);
             setUpdateFlag((p) => p + 1);
         },
-        [data, collapsedNodes]
+        [data, collapsedNodes, objectTypeLookup]
     );
 
+    // ---  Color State Initialization ---
+    useEffect(() => {
+        if (!data || !fileId) return;
+
+        const objectTypes: string[] = [];
+
+        if (Array.isArray(data.objectTypes)) {
+            data.objectTypes.forEach((t: any) => {
+                const name = typeof t === 'string' ? t : t.name;
+                if (name) objectTypes.push(name);
+            });
+        } else if (Array.isArray(data.object_types)) {
+            data.object_types.forEach((t: any) => {
+                const name = typeof t === 'string' ? t : t.name;
+                if (name) objectTypes.push(name);
+            });
+        }
+
+        if (objectTypes.length === 0 && objectTypeLookup.size > 0) {
+            const uniqueTypes = new Set(objectTypeLookup.values());
+            uniqueTypes.forEach((t) => objectTypes.push(t));
+        }
+
+        if (objectTypes.length > 0) {
+            initializeDataState(fileId, objectTypes);
+        }
+    }, [data, fileId, initializeDataState, objectTypeLookup]);
+
+    // --- Main Render Effect ---
     useEffect(() => {
         if (!data || !svgRef.current) return;
+
+        // Build valid types set
+        const validObjectTypes = new Set<string>();
+        if (Array.isArray(data.objectTypes)) {
+            data.objectTypes.forEach((t: any) => {
+                const name = typeof t === 'string' ? t : t.name;
+                if (name) validObjectTypes.add(name);
+            });
+        } else if (Array.isArray(data.object_types)) {
+            data.object_types.forEach((t: any) => {
+                const name = typeof t === 'string' ? t : t.name;
+                if (name) validObjectTypes.add(name);
+            });
+        } else if (data.objects) {
+            Object.values(data.objects).forEach((obj: any) => {
+                if (obj.type) validObjectTypes.add(obj.type);
+            });
+        }
 
         const svg = d3.select(svgRef.current);
         const width = svgRef.current.clientWidth;
@@ -186,11 +255,15 @@ export const useGraphInteractions = (
         chunkedEvents.forEach((evt: any) =>
             (evt.relationships || []).forEach((rel: any) => rel.objectId && objectIds.add(rel.objectId.toString()))
         );
-        const baseObjectNodes: NodeDatum[] = Array.from(objectIds).map((objId) => ({
-            id: objId,
-            label: data.objects?.[objId]?.type || objId,
-            type: 'object',
-        }));
+
+        const baseObjectNodes: NodeDatum[] = Array.from(objectIds).map((objId) => {
+            const type = objectTypeLookup.get(objId) || objId;
+            return {
+                id: objId,
+                label: type,
+                type: 'object',
+            };
+        });
 
         const newBaseEdges: EdgeDatum[] = [];
         chunkedEvents.forEach((evt: any) => {
@@ -200,7 +273,8 @@ export const useGraphInteractions = (
                 if (!objId) return;
 
                 const source = { id: evtId, label: evt.type || evt.activity || 'Event', type: 'event' } as NodeDatum;
-                const target = { id: objId, label: data.objects?.[objId]?.type || objId, type: 'object' } as NodeDatum;
+                const type = objectTypeLookup.get(objId) || objId;
+                const target = { id: objId, label: type, type: 'object' } as NodeDatum;
                 const edgeId = `${evtId}-${objId}-${idx}`;
                 newBaseEdges.push({ id: edgeId, source, target, label: rel.qualifier || '' });
             });
@@ -219,8 +293,8 @@ export const useGraphInteractions = (
                         type: 'event',
                     });
                 } else {
-                    const objDetails = data.objects?.[id];
-                    mergedNodeMap.set(id, { id, label: objDetails?.type || id, type: 'object' });
+                    const type = objectTypeLookup.get(id) || id;
+                    mergedNodeMap.set(id, { id, label: type, type: 'object' });
                 }
             }
         });
@@ -338,13 +412,28 @@ export const useGraphInteractions = (
 
                 if (hasHiddenNeighbors) return 'lightgray';
 
-                // --- Logic Reverted: Objects are colored, Events are White ---
-                if (d.type === 'event') return 'white';
+                const isInvalidObject = d.type === 'object' && !validObjectTypes.has(d.label);
+
+                if (d.type === 'event' || isInvalidObject) {
+                    return 'white';
+                }
+
                 return getColorForObject(fileId, d.label);
             })
-            // --- Logic Reverted: Events get Black border, Objects get White ---
-            .attr('stroke', (d) => (d.type === 'event' ? 'black' : '#fff'))
-            .attr('stroke-width', (d) => (d.type === 'event' ? 2.5 : 1.5))
+            .attr('stroke', (d) => {
+                const isInvalidObject = d.type === 'object' && !validObjectTypes.has(d.label);
+                if (d.type === 'event' || isInvalidObject) {
+                    return 'black';
+                }
+                return '#fff';
+            })
+            .attr('stroke-width', (d) => {
+                const isInvalidObject = d.type === 'object' && !validObjectTypes.has(d.label);
+                if (d.type === 'event' || isInvalidObject) {
+                    return 2.5;
+                }
+                return 1.5;
+            })
             .style('cursor', 'pointer')
             .on('click', (event, d) => {
                 event.stopPropagation();
@@ -354,7 +443,14 @@ export const useGraphInteractions = (
 
         nodeGroup.each(function (d) {
             const group = d3.select(this);
-            const words = (d.label || '').split(/[\s_]+|(?=[A-Z])/g);
+
+            // If d.type is 'object' (whether valid or invalid), show the ID.
+            // If d.type is 'event', show the Label.
+            const showId = d.type === 'object';
+
+            const content = showId ? d.id || '' : d.label || '';
+            const words = content.split(/[\s_]+|(?=[A-Z])/g);
+
             const lineHeight = 8;
             const maxLines = 3;
             const wrapped: string[] = [];
@@ -369,14 +465,16 @@ export const useGraphInteractions = (
             if (line) wrapped.push(line);
             const finalLines = wrapped.length > maxLines ? [...wrapped.slice(0, maxLines - 1), '...'] : wrapped;
 
+            const isInvalidObject = d.type === 'object' && !validObjectTypes.has(d.label);
+            const textColor = d.type === 'event' || isInvalidObject ? 'black' : 'white';
+
             const text = group
                 .append('text')
                 .attr('text-anchor', 'middle')
                 .attr('alignment-baseline', 'middle')
                 .attr('font-size', 8)
                 .attr('font-weight', '600')
-                // --- Logic Reverted: Events get Black text, Objects get White text ---
-                .attr('fill', d.type === 'event' ? 'black' : 'white')
+                .attr('fill', textColor)
                 .attr('pointer-events', 'none');
 
             const offset = (finalLines.length - 1) * -lineHeight * 0.5;

@@ -22,7 +22,7 @@ import {
     SelectValue,
 } from '~/components/ui/select';
 import GraphPage from '~/components/graph_visualization/GraphPage';
-import { getAdvancedCN, getConnectedComponentsCN, getTraditionalCN } from '~/services/api';
+import { getAdvancedCN, getConnectedComponentsCN, getGenericCN, getTraditionalCN } from '~/services/api';
 import { useGetCaseNotions, useGetLogGraphs, useGetOcelObjectTypes } from '~/services/queries';
 import { BaseExploreNodeAsset, BaseExploreNodeData } from '~/types/explore/nodeData/baseNodeData';
 import { MinerNode } from '~/types/explore/nodes';
@@ -43,6 +43,8 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
     const [makeFinalFetch, setMakeFinalFetch] = useState<boolean>(false);
     const [isDirty, setIsDirty] = useState<boolean>(false);
 
+    const [genericPayload, setGenericPayload] = useState<any>(null);
+
     const { data: ocelObjectTypesData } = useGetOcelObjectTypes(fileId);
     const cnGet = useGetCaseNotions(currentCnFileId, makeFinalFetch);
     const logGraph = useGetLogGraphs(fileId ?? '');
@@ -54,6 +56,8 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
             }
             const newCaseNotionFileId = uuidv4();
             setCurrentCnFileId(newCaseNotionFileId);
+            console.log('generic pay load');
+            console.log(genericPayload);
 
             switch (algorithm) {
                 case 'traditional':
@@ -62,6 +66,8 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                     return getConnectedComponentsCN(fileId, selectedObjectType, newCaseNotionFileId);
                 case 'advanced':
                     return getAdvancedCN(fileId, selectedObjectType, newCaseNotionFileId);
+                case 'generic':
+                    return getGenericCN(fileId, genericPayload, newCaseNotionFileId);
                 default:
                     throw new Error(`Unknown or unsupported algorithm: ${algorithm}`);
             }
@@ -122,7 +128,12 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                         <div className="flex flex-1 w-full h-full overflow-hidden">
                             <div className="flex flex-col w-full h-full overflow-hidden">
                                 {fileId ? (
-                                    <GraphPage fileId={fileId} caseNotionGraph={data?.type_level_graph} />
+                                    <GraphPage
+                                        fileId={fileId}
+                                        caseNotionGraph={data?.type_level_graph}
+                                        editable={selectedAlgorithm === 'generic'}
+                                        onGenericPayloadChange={setGenericPayload}
+                                    />
                                 ) : (
                                     <div className="flex flex-1 items-center justify-center">
                                         <p className="text-gray-500">No OCEL file connected.</p>
@@ -149,15 +160,13 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                                     <SelectGroup>
                                         <SelectLabel>Algorithms</SelectLabel>
                                         <SelectItem value="traditional">Traditional</SelectItem>
-                                        <SelectItem value="generic" disabled>
-                                            Generic (Not Implemented)
-                                        </SelectItem>
+                                        <SelectItem value="generic">Generic</SelectItem>
                                         <SelectItem value="advanced">Advanced</SelectItem>
                                         <SelectItem value="connected-component">Connected Component</SelectItem>
                                     </SelectGroup>
                                 </SelectContent>
                             </Select>
-                            {selectedAlgorithm !== 'connected-component' && (
+                            {selectedAlgorithm !== 'connected-component' && selectedAlgorithm !== 'generic' && (
                                 <Select
                                     value={selectedObjectType}
                                     onValueChange={(val) => {
@@ -185,8 +194,10 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                                 </Select>
                             )}
                             <Button
-                                variant={'outline'}
-                                onClick={handleMineClick}
+                                variant="outline"
+                                onClick={() => {
+                                    handleMineClick();
+                                }}
                                 disabled={!selectedAlgorithm || isPending}
                                 className="h-10 w-10 ml-2"
                             >

@@ -15,7 +15,6 @@ import type { FileExploreNodeData } from '~/types/explore/nodeData/fileNodeData'
 import type { VisualizationExploreNodeData } from '~/types/explore/nodeData/visualizationNodeData';
 
 type ExploreNode = Node<FileExploreNodeData> | Node<VisualizationExploreNodeData>;
-
 export interface SavedPipeline {
     id: string;
     name: string;
@@ -23,12 +22,10 @@ export interface SavedPipeline {
     edges: Edge[];
     savedAt: string;
 }
-
 export interface HistogramState {
     selections: Record<string, number[]>;
     isSubmitted: boolean;
 }
-
 interface ExploreFlowStore {
     nodes: ExploreNode[];
     edges: Edge[];
@@ -51,7 +48,6 @@ interface ExploreFlowStore {
         id: string | null;
         name: string | null;
     };
-
     // --- Color State ---
     colorMaps: Record<string, Record<string, string>>;
     // Tracks the current color index for each file to ensure next assigned color is unique
@@ -59,12 +55,10 @@ interface ExploreFlowStore {
     initializeDataState: (fileId: string, objectTypes: string[]) => void;
     getColorForObject: (fileId: string, objectType: string) => string;
     // --- End Color State ---
-
     // --- Histogram Persistence State ---
     histogramStates: Record<string, HistogramState>;
     setHistogramState: (nodeId: string, state: HistogramState) => void;
 }
-
 export const useExploreFlowStore = create<ExploreFlowStore>((set, get) => ({
     nodes: [],
     edges: [],
@@ -74,7 +68,6 @@ export const useExploreFlowStore = create<ExploreFlowStore>((set, get) => ({
     fileColorIndexes: {},
     // --- Histogram State ---
     histogramStates: {},
-
     onNodesChange: (changes) => {
         set({
             nodes: applyNodeChanges(changes, get().nodes) as ExploreNode[],
@@ -209,40 +202,32 @@ export const useExploreFlowStore = create<ExploreFlowStore>((set, get) => ({
             set({ nodes: [], edges: [], currentPipeline: { id: null, name: null } });
         }
     },
-
     // --- Color Actions (Strictly Unique) ---
     initializeDataState: (fileId: string, objectTypes: string[]) => {
         const state = get();
-
         // Get existing map and index for this file
         const currentMap = { ...(state.colorMaps[fileId] || {}) };
         let currentIndex = state.fileColorIndexes[fileId] || 0;
         let hasChanges = false;
-
         // Track already used colors to prevent collisions
         const usedColors = new Set(Object.values(currentMap));
-
         //Deduplicate inputs
         const uniqueTypes = Array.from(new Set(objectTypes));
-
         uniqueTypes.forEach((type) => {
             if (!currentMap[type]) {
                 let color = '';
                 let attempts = 0;
-
                 // 4. Find next available unique color
                 do {
                     color = getSequentialColor(currentIndex);
                     currentIndex++;
                     attempts++;
                 } while (usedColors.has(color) && attempts < 100);
-
                 currentMap[type] = color;
                 usedColors.add(color);
                 hasChanges = true;
             }
         });
-
         if (hasChanges) {
             set((state) => ({
                 colorMaps: {
@@ -256,7 +241,6 @@ export const useExploreFlowStore = create<ExploreFlowStore>((set, get) => ({
             }));
         }
     },
-
     //     {
     //   "colorMaps": {
     //     "file-123-abc": {
@@ -272,15 +256,12 @@ export const useExploreFlowStore = create<ExploreFlowStore>((set, get) => ({
     getColorForObject: (fileId: string, objectType: string): string => {
         const state = get();
         const colorMap = state.colorMaps[fileId];
-
         if (colorMap && colorMap[objectType]) {
             return colorMap[objectType];
         }
-
         // Fallback for uninitialized types
         return getDeterministicColor(objectType);
     },
-
     // --- Histogram Persistence ---
     setHistogramState: (nodeId, state) => {
         set((prev) => ({
