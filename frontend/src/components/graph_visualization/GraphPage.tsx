@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { useExploreFlowStore } from '~/stores/exploreStore';
@@ -31,12 +28,12 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
     const [startingObjects, setStartingObjects] = useState<string[]>([]);
 
     function pushBidirectional(arr: any[], a: any, b: any) {
-    // forward
-    arr.push([a, b]);
+        // forward
+        arr.push([a, b]);
 
-    // reverse
-    arr.push([b, a]);
-}
+        // reverse
+        arr.push([b, a]);
+    }
 
     useEffect(() => {
         if (!editable || !localGraph) return;
@@ -52,7 +49,7 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
         console.log(localGraph);
 
         localGraph.links.forEach((l: any) => {
-            if (!l.deselected) return;
+            if (l.deselected) return;
 
             const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
             const targetId = typeof l.target === 'object' ? l.target.id : l.target;
@@ -66,7 +63,7 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
             const targetType = { name: target.id, attributes: [] };
 
             if (source.group === 'event' && target.group === 'object') {
-               pushBidirectional(e2o_relations, sourceType, targetType);
+                pushBidirectional(e2o_relations, sourceType, targetType);
             }
 
             if (source.group === 'object' && target.group === 'event') {
@@ -240,24 +237,27 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
                 const self = d3.select(this);
 
                 if (d.group === 'object') {
-                    if (event.shiftKey) { // Shift + Click on Object Node: Toggle as Start Node
+                    if (event.shiftKey) {
+                        // Shift + Click on Object Node: Toggle as Start Node
                         const isCurrentlyStarting = startingObjects.includes(d.id);
                         setStartingObjects((prev) =>
                             isCurrentlyStarting ? prev.filter((x) => x !== d.id) : [...prev, d.id]
                         );
                         // Update visual feedback immediately
-                        self.attr('stroke', isCurrentlyStarting ? getStroke(d) : 'black')
-                            .attr('stroke-width', isCurrentlyStarting ? getStrokeWidth(d) : 6);
-                    } else { // Regular Click on Object Node: Toggle Deselection
+                        self.attr('stroke', isCurrentlyStarting ? getStroke(d) : 'black').attr(
+                            'stroke-width',
+                            isCurrentlyStarting ? getStrokeWidth(d) : 6
+                        );
+                    } else {
+                        // Regular Click on Object Node: Toggle Deselection
                         d.deselected = !d.deselected;
-                        self.attr('fill', getFill(d))
-                            .attr('stroke-opacity', d.deselected ? 0.35 : 1);
+                        self.attr('fill', getFill(d)).attr('stroke-opacity', d.deselected ? 0.35 : 1);
                         updateConnectedLinks(d);
                     }
-                } else { // Event Node (d.group !== 'object'): Regular Click toggles deselection
+                } else {
+                    // Event Node (d.group !== 'object'): Regular Click toggles deselection
                     d.deselected = !d.deselected;
-                    self.attr('fill', getFill(d))
-                        .attr('stroke-opacity', d.deselected ? 0.35 : 1);
+                    self.attr('fill', getFill(d)).attr('stroke-opacity', d.deselected ? 0.35 : 1);
                     updateConnectedLinks(d);
                 }
             });
@@ -306,7 +306,3 @@ const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable
 };
 
 export default GraphPage;
-
-
-
-
