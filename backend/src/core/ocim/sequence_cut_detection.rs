@@ -2,8 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use petgraph::algo::toposort;
 use petgraph::graph::DiGraph;
-use petgraph::unionfind::UnionFind;
-use crate::core::ocim::auxiliary_methods::{get_divergent_types, get_non_divergent_types};
+use crate::core::ocim::auxiliary_methods::{
+    connected_partitions, get_divergent_types, get_non_divergent_types,
+};
 use crate::core::ocim::common_data::{GlobalData, LocalData};
 use crate::core::ocim::sequence_cut::is_sequence_cut_valid;
 use crate::models::ocpt::OCPTOperatorType;
@@ -189,29 +190,6 @@ fn remove_cycles(
     }
 
     (result, change)
-}
-
-/// Build connected components from an undirected adjacency predicate.
-fn connected_partitions(
-    alphabet: &[String],
-    predicate: impl Fn(usize, usize) -> bool,
-) -> Vec<Vec<String>> {
-    let n = alphabet.len();
-    let mut uf = UnionFind::new(n);
-    for i in 0..n {
-        for j in (i + 1)..n {
-            if predicate(i, j) {
-                uf.union(i, j);
-            }
-        }
-    }
-
-    let mut comp_map: HashMap<usize, Vec<String>> = HashMap::new();
-    for i in 0..n {
-        let root = uf.find(i);
-        comp_map.entry(root).or_default().push(alphabet[i].clone());
-    }
-    comp_map.into_values().collect()
 }
 
 /// Find the partition index that contains the activity.
