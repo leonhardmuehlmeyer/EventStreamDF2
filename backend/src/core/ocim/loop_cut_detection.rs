@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
-use petgraph::unionfind::UnionFind;
 use rustc_hash::FxHashSet;
 
-use crate::core::ocim::auxiliary_methods::{get_divergent_types, get_non_divergent_types};
+use crate::core::ocim::auxiliary_methods::{
+    connected_partitions, get_divergent_types, get_non_divergent_types,
+};
 use crate::core::ocim::common_data::{GlobalData, LocalData};
 use crate::core::ocim::loop_cut::is_loop_cut_valid;
 use crate::models::ocpt::OCPTOperatorType;
@@ -46,29 +45,6 @@ pub fn check_loop(local_data: &LocalData, global_data: &GlobalData, a: &String, 
     }
 
     false
-}
-
-/// Build connected components of the alphabet using an undirected predicate.
-fn connected_partitions(
-    alphabet: &[String],
-    predicate: impl Fn(usize, usize) -> bool,
-) -> Vec<Vec<String>> {
-    let n = alphabet.len();
-    let mut uf = UnionFind::new(n);
-    for i in 0..n {
-        for j in (i + 1)..n {
-            if predicate(i, j) {
-                uf.union(i, j);
-            }
-        }
-    }
-
-    let mut comp_map: HashMap<usize, Vec<String>> = HashMap::new();
-    for i in 0..n {
-        let root = uf.find(i);
-        comp_map.entry(root).or_default().push(alphabet[i].clone());
-    }
-    comp_map.into_values().collect()
 }
 
 /// Rust port of the Python `find_cut_loop` detection routine.

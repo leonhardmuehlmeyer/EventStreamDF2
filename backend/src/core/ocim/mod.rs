@@ -1,5 +1,4 @@
 pub mod algorithm;
-pub mod cuts;
 pub mod exclusive_cut_detection;
 pub mod concurrent_cut;
 pub mod concurrent_cut_detection;
@@ -7,6 +6,7 @@ pub mod log_splitting;
 pub mod common_data;
 pub mod auxiliary_methods;
 pub mod follows_relations;
+#[cfg(test)]
 pub mod example_log;
 pub mod sequence_cut_detection;
 pub mod basecase;

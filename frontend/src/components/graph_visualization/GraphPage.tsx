@@ -1,7 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { MousePointer } from 'lucide-react';
+import LegendRect from '~/components/ocpt/ui/LegendRect';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useGetLogGraphs } from '~/services/queries';
+import { getDeterministicColor } from '~/lib/colors';
 
 type EdgeMode = 'both' | 'forward' | 'backward' | 'none';
 
@@ -91,6 +94,10 @@ const GraphPage: React.FC<GraphPageProps> = ({
     useEffect(() => {
         if (!data) return;
 
+        // Prevent resetting the graph when in generic/editable mode if it already exists.
+        // This ensures the user's selections are preserved when the parent component updates (e.g. after mining).
+        if (editable && localGraph) return;
+
         const nodes: any[] = [];
         const links: any[] = [];
 
@@ -128,7 +135,7 @@ const GraphPage: React.FC<GraphPageProps> = ({
         });
 
         setLocalGraph({ nodes, links });
-    }, [data, caseNotionGraph]);
+    }, [data, caseNotionGraph, editable]);
 
     
 
@@ -328,10 +335,49 @@ const GraphPage: React.FC<GraphPageProps> = ({
         return <div className="flex w-full h-full justify-center items-center text-red-500">Failed to load graph</div>;
 
     return (
-        <div className="w-full h-full">
-            <div className="p-2 text-sm text-gray-600">
-                Starting object types: {startingObjects.length ? startingObjects.join(', ') : 'None'}
-            </div>
+        <div className="w-full h-full p-2">
+            {editable && (
+                <div className="mt-2 flex flex-col gap-2">
+                    {/* Section 1: Active State with Badges */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground/90">Starting Object Types:</span>
+                        {startingObjects.length > 0 ? (
+                            <div className="flex gap-1">
+                                {startingObjects.map((obj) => (
+                                    <span
+                                        key={obj}
+                                        className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground"
+                                    >
+                                        <LegendRect size={8} fill={getDeterministicColor(obj)} />
+                                        {obj}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <span className="italic text-muted-foreground/50">None selected</span>
+                        )}
+                    </div>
+
+                    {/* Section 2: Horizontal Control Legend */}
+                    <div className="flex items-center gap-4 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                            <MousePointer className="h-3 w-3" />
+                            <span>Select/Deselect</span>
+                        </div>
+                        <div className="h-3 w-[1px] bg-border" />
+                        <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1">
+                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                    Shift
+                                </kbd>
+                                +
+                                <MousePointer className="h-3 w-3" />
+                            </span>
+                            <span>Mark as start object</span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div ref={containerRef} className="w-full h-full">
                 <svg ref={svgRef} className="w-full h-full" />

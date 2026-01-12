@@ -1,6 +1,52 @@
+use std::collections::HashMap;
+
+use petgraph::unionfind::UnionFind;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::core::ocim::common_data::{GlobalData, LocalData};
+
+/// Build connected components from an undirected adjacency predicate.
+pub fn connected_partitions(
+    alphabet: &[String],
+    predicate: impl Fn(usize, usize) -> bool,
+) -> Vec<Vec<String>> {
+    let n = alphabet.len();
+    let mut uf = UnionFind::new(n);
+    for i in 0..n {
+        for j in (i + 1)..n {
+            if predicate(i, j) {
+                uf.union(i, j);
+            }
+        }
+    }
+
+    let mut comp_map: HashMap<usize, Vec<String>> = HashMap::new();
+    for i in 0..n {
+        let root = uf.find(i);
+        comp_map.entry(root).or_default().push(alphabet[i].clone());
+    }
+    comp_map.into_values().collect()
+}
+
+/// Convert a union-find structure into grouped components preserving item labels.
+pub fn components_from_unionfind(
+    uf: &petgraph::unionfind::UnionFind<usize>,
+    items: &[String],
+) -> Vec<Vec<String>> {
+    let mut groups: FxHashMap<usize, Vec<String>> = FxHashMap::default();
+    for (idx, item) in items.iter().enumerate() {
+        let root = uf.find(idx);
+        groups.entry(root).or_default().push(item.clone());
+    }
+    groups.into_values().collect()
+}
+
+/// Check whether partitions cover the entire alphabet exactly.
+pub fn partitions_cover_alphabet(partitions: &[Vec<String>], alphabet: &[String]) -> bool {
+    let part_set: FxHashSet<_> = partitions.iter().flatten().cloned().collect();
+    let alphabet_set: FxHashSet<_> = alphabet.iter().cloned().collect();
+    part_set == alphabet_set
+}
 
 /// Shared related types for (a,b) that are non-divergent in at least one context activity.
 pub fn get_non_divergent_types(

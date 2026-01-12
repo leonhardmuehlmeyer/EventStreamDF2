@@ -23,7 +23,7 @@ import {
 } from '~/components/ui/select';
 import GraphPage from '~/components/graph_visualization/GraphPage';
 import { getAdvancedCN, getConnectedComponentsCN, getGenericCN, getTraditionalCN } from '~/services/api';
-import { useGetCaseNotions, useGetLogGraphs, useGetOcelObjectTypes } from '~/services/queries';
+import { useGetCaseNotions, useGetOcelObjectTypes } from '~/services/queries';
 import { BaseExploreNodeAsset, BaseExploreNodeData } from '~/types/explore/nodeData/baseNodeData';
 import { MinerNode } from '~/types/explore/nodes';
 
@@ -47,9 +47,8 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
 
     const { data: ocelObjectTypesData } = useGetOcelObjectTypes(fileId);
     const cnGet = useGetCaseNotions(currentCnFileId, makeFinalFetch);
-    const logGraph = useGetLogGraphs(fileId ?? '');
 
-    const { mutate, isPending, data } = useMutation({
+    const { mutate, isPending, data, reset } = useMutation({
         mutationFn: async (algorithm: string) => {
             if (!fileId) {
                 throw new Error('File ID is not available.');
@@ -67,6 +66,10 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                 case 'advanced':
                     return getAdvancedCN(fileId, selectedObjectType, newCaseNotionFileId);
                 case 'generic':
+                    if (genericPayload.start_types.length === 0) {
+                        return;
+                    }
+
                     return getGenericCN(fileId, genericPayload, newCaseNotionFileId);
                 default:
                     throw new Error(`Unknown or unsupported algorithm: ${algorithm}`);
@@ -99,8 +102,15 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
     };
 
     useEffect(() => {
-        const outputAssets = node.data.assets.filter((asset) => asset.io === 'output');
-        if (!cnGet.data || !fileName || outputAssets.length > 0) return;
+        if (!cnGet.data || !fileName) return;
+
+        let currentAssets = [...node.data.assets];
+        const outputAssets = currentAssets.filter((asset) => asset.io === 'output');
+
+        if (outputAssets.length > 0) {
+            // Filter out existing output assets to replace them
+            currentAssets = currentAssets.filter((asset) => asset.io !== 'output');
+        }
 
         const asset: BaseExploreNodeAsset = {
             id: cnGet.data.case_ocels_file_id,
@@ -110,7 +120,7 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
             name: `cn_${cnGet.data.case_ocels_file_id}`,
         };
 
-        const updatedAssets = [...node.data.assets, asset];
+        const updatedAssets = [...currentAssets, asset];
         node.data.onDataChange(node.id, { assets: updatedAssets });
         onOpenChange(false);
     }, [cnGet.data]);
@@ -150,6 +160,7 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange, update
                                 onValueChange={(val) => {
                                     setSelectedAlgorithm(val);
                                     setIsDirty(true);
+                                    reset();
                                 }}
                                 value={selectedAlgorithm}
                             >

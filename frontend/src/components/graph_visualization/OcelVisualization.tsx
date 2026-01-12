@@ -13,13 +13,11 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
     isFullScreen = false,
     sourceType = 'ocelFileNode',
 }) => {
-    // 1. Setup Data Stores & Type Checks
     const { getColorForObject } = useExploreFlowStore();
 
     const isCollection = sourceType === 'ocelCollectionNode';
     const isOcel = sourceType === 'ocelFileNode';
 
-    // 2. Data Fetching (Dual Strategy for File vs Collection)
     const { data: ocelData, isLoading: ocelLoading, error: ocelError } = useGetOcel(isOcel ? fileId : null);
     const {
         data: collectionData,
@@ -29,7 +27,6 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
 
     const [selectedCaseIndex, setSelectedCaseIndex] = useState(0);
 
-    // Memoize the active data source based on selection
     const data = useMemo(() => {
         if (
             isCollection &&
@@ -45,7 +42,6 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
     const isLoading = isCollection ? collectionLoading : ocelLoading;
     const error = isCollection ? collectionError : ocelError;
 
-    // 3. Refs & State
     const svgRef = useRef<SVGSVGElement | null>(null);
     const eventsChartRef = useRef<SVGSVGElement | null>(null);
     const objectsChartRef = useRef<SVGSVGElement | null>(null);
@@ -53,8 +49,6 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
     const [chunk, setChunk] = useState(1);
     const [selectedType, setSelectedType] = useState<string>('__ALL__');
 
-    // 4. Interaction Hook
-    // We pass fileId here (from V1) so the graph interactions can reference the correct color store ID
     const { contextMenu, handleCollapse, handleExpand, handleTypeChange } = useGraphInteractions(
         fileId,
         data,
@@ -65,7 +59,6 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
         svgRef
     );
 
-    // 5. D3 Effect (Histograms with Dynamic Coloring from V1)
     useEffect(() => {
         if (!data) return;
 
@@ -91,7 +84,7 @@ const OcelVisualization: React.FC<OcelVisualizationD3Props> = ({
             const width = svg.node()?.clientWidth || 250;
             const height = svg.node()?.clientHeight || 200;
 
-            const margin = { top: 20, right: 20, bottom: 50, left: 40 };
+            const margin = { top: 20, right: 20, bottom: 80, left: 40 };
 
             const x = d3
                 .scaleBand()

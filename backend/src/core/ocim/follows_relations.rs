@@ -1,18 +1,16 @@
 use crate::models::dfg::OCDirectlyFollowsGraph;
-use std::borrow::Cow;
-use rustc_hash::{FxHashMap,FxHashSet};
-use petgraph::graph::DiGraph;
+use rustc_hash::{FxHashMap, FxHashSet};
+#[cfg(test)]
 use petgraph::algo::floyd_warshall;
+#[cfg(test)]
+use petgraph::graph::DiGraph;
 
-/// Represents cumulative and closure computations over an [`OCDirectlyFollowsGraph`].
-pub struct OCGraphRelations<'a> {
-    pub cumulative_dfg: FxHashMap<String, (FxHashMap<(Cow<'a, str>, Cow<'a, str>), u32>, FxHashMap<String, u32>, FxHashMap<String, u32>)>,
-    pub transitive_closure: FxHashMap<String, FxHashSet<(String, String)>>,
-}
+/// Namespaced helpers for cumulative and closure computations over an [`OCDirectlyFollowsGraph`].
+pub struct OCGraphRelations;
 
-impl<'a> OCGraphRelations<'a> {
+impl OCGraphRelations {
     /// Compute cumulative directly-follows relations for each object type
-    pub fn get_cummulative_directly_follows_relation(
+    pub fn get_cummulative_directly_follows_relation<'a>(
         ocdfg: &'a OCDirectlyFollowsGraph<'a>,
     ) -> FxHashMap<
         String,
@@ -46,10 +44,11 @@ impl<'a> OCGraphRelations<'a> {
         result
     }
 
-    /// Compute transitive closure follows relation per object type
-    pub fn get_transitive_closure_follows_relation(
+    /// Compute transitive closure follows relation per object type (used in tests).
+    #[cfg(test)]
+    pub fn get_transitive_closure_follows_relation<'a>(
         ocdfg: &'a OCDirectlyFollowsGraph<'a>,
-    ) -> FxHashMap<String, FxHashSet<(String, String)>>  {
+    ) -> FxHashMap<String, FxHashSet<(String, String)>> {
         let mut result = FxHashMap::default();
 
         for (ob_type, dfg) in &ocdfg.object_type_to_dfg {
@@ -63,7 +62,8 @@ impl<'a> OCGraphRelations<'a> {
             }
 
             for ((a, b), _) in &dfg.directly_follows_relations {
-                if let (Some(src), Some(dst)) = (node_map.get(a.as_ref()), node_map.get(b.as_ref())) {
+                if let (Some(src), Some(dst)) = (node_map.get(a.as_ref()), node_map.get(b.as_ref()))
+                {
                     g.add_edge(*src, *dst, ());
                 }
             }
@@ -84,74 +84,6 @@ impl<'a> OCGraphRelations<'a> {
         }
 
         result
-    }
-
-    /// Build follows relations between partitions (indices) based on closure reachability
-    pub fn get_partition_follows_relations(
-        closure: &FxHashMap<String, FxHashMap<(String, String), u32>>,
-        partitions: &[Vec<String>],
-        object_type: &str,
-    ) -> Vec<(usize, usize)> {
-        let mut edges = Vec::new();
-
-        if let Some(clos) = closure.get(object_type) {
-            for i in 0..partitions.len() {
-                for j in 0..partitions.len() {
-                    if i == j {
-                        continue;
-                    }
-
-                    let mut connected = false;
-                    for a in &partitions[i] {
-                        for b in &partitions[j] {
-                            if clos.contains_key(&(a.clone(), b.clone())) {
-                                connected = true;
-                                break;
-                            }
-                        }
-                        if connected {
-                            break;
-                        }
-                    }
-
-                    if connected {
-                        edges.push((i, j));
-                    }
-                }
-            }
-        }
-
-        edges
-    }
-
-    /// Compute transitive closure of the partition follows relations
-    pub fn get_transitive_closure_partition_relations(
-        closure: &FxHashMap<String, FxHashMap<(String, String), u32>>,
-        partitions: &[Vec<String>],
-        object_type: &str,
-    ) -> Vec<(usize, usize)> {
-        let rel = Self::get_partition_follows_relations(closure, partitions, object_type);
-
-        let mut g: DiGraph<usize, ()> = DiGraph::new();
-        let nodes: Vec<_> = (0..partitions.len()).map(|i| g.add_node(i)).collect();
-
-        for (i, j) in rel {
-            g.add_edge(nodes[i], nodes[j], ());
-        }
-
-        let closure = floyd_warshall(&g, |_| 1.0).unwrap();
-        closure
-            .into_iter()
-            .filter_map(|((src, dst), _)| {
-                let i = g[src];
-                let j = g[dst];
-                if i != j {
-                    Some((i, j))
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 
     /// Compute transitive closure per object type directly from the DFG maps.

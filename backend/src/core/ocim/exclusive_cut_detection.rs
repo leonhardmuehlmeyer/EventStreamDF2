@@ -1,7 +1,8 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::core::ocim::auxiliary_methods::{
-    get_divergent_types, get_non_divergent_types, get_projected_end, get_projected_start,
+    components_from_unionfind, get_divergent_types, get_non_divergent_types, get_projected_end,
+    get_projected_start,
 };
 use crate::core::ocim::common_data::{GlobalData, LocalData};
 use crate::core::ocim::exclusive_cut::is_exclusive_cut_valid;
@@ -201,18 +202,6 @@ pub fn find_cut_exclusive(
     }
 
     None
-}
-
-fn components_from_unionfind(
-    uf: &petgraph::unionfind::UnionFind<usize>,
-    items: &[String],
-) -> Vec<Vec<String>> {
-    let mut groups: FxHashMap<usize, Vec<String>> = FxHashMap::default();
-    for (idx, item) in items.iter().enumerate() {
-        let root = uf.find(idx);
-        groups.entry(root).or_default().push(item.clone());
-    }
-    groups.into_values().collect()
 }
 
 #[cfg(test)]

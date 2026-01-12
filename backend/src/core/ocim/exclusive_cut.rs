@@ -1,7 +1,8 @@
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashSet;
 
 use crate::core::ocim::auxiliary_methods::{
     get_divergent_types, get_non_divergent_types, get_projected_end, get_projected_start,
+    partitions_cover_alphabet,
 };
 use crate::core::ocim::common_data::{GlobalData, LocalData};
 
@@ -145,16 +146,11 @@ pub fn is_exclusive_cut_valid(
     true
 }
 
-fn partitions_cover_alphabet(partitions: &[Vec<String>], alphabet: &[String]) -> bool {
-    let part_set: FxHashSet<_> = partitions.iter().flatten().cloned().collect();
-    let alphabet_set: FxHashSet<_> = alphabet.iter().cloned().collect();
-    part_set == alphabet_set
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::models::ocel::OCEL;
+    use rustc_hash::{FxHashMap, FxHashSet};
 
     fn empty_ocel() -> OCEL {
         OCEL {
