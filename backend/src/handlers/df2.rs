@@ -1,6 +1,10 @@
 use crate::core::df2_miner::ocpt_generator::generate_ocpt_from_fileid;
+use crate::core::identity_relations::get_extended_ocpt;
 use crate::core::struct_converters::ocpt_frontend_backend::{backend_to_frontend, frontend_to_backend};
+use crate::core::utils::relations::build_relations_from_ocels;
+use crate::models::ocel::OCEL;
 use crate::models::ocpt::{OCPT, OcptFE};
+use crate::traits::import_export::ImportableFromPath;
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, Json};
 use serde_json::json;
 use tokio::fs;
@@ -13,7 +17,8 @@ pub async fn apply_df2(Path(file_id): Path<String>) -> Result<impl IntoResponse,
     }
 
     // Run the synchronous miner on a blocking thread; it writes ./temp/ocpt_{id}.json (frontend shape).
-    let generated_id = tokio::task::spawn_blocking(move || generate_ocpt_from_fileid(&file_id))
+    let file_id_for_miner = file_id.clone();
+    let generated_id = tokio::task::spawn_blocking(move || generate_ocpt_from_fileid(&file_id_for_miner))
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("DF2 miner panicked: {e}")))?;
 
@@ -44,7 +49,19 @@ pub async fn apply_df2(Path(file_id): Path<String>) -> Result<impl IntoResponse,
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Write backend OCPT failed: {e}")))?;
 
     // Respond with frontend shape and new file_id.
-    let ocpt_frontend = backend_to_frontend(&ocpt_backend);
+    let mut ocpt_frontend = backend_to_frontend(&ocpt_backend);
+    let ocel = OCEL::import_from_path(&file_id).await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("Failed to load OCEL for identity relations: {:?}", e),
+        )
+    })?;
+    let relations = build_relations_from_ocels(&[ocel]);
+    ocpt_frontend.hierarchy = get_extended_ocpt(&ocpt_frontend.hierarchy, &relations, None);
+    println!(
+        "DF2 OCPT (with identity relations):\n{:#?}",
+        ocpt_frontend.hierarchy
+    );
     let payload = json!({
         "file_id": generated_id,
         "ocpt": ocpt_frontend
