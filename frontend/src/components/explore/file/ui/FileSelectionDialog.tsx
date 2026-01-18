@@ -36,8 +36,8 @@ const FileSelectionDialog: React.FC<FileSelectionDialogProps> = ({ isOpen }) => 
                     origin: 'preprocessed',
                     io: 'output',
                 };
-                updateNodeData(dialogNodeId, (prevData) => ({
-                    assets: [...prevData.assets, newAsset],
+                updateNodeData(dialogNodeId, () => ({
+                    assets: [newAsset],
                 }));
             }
             closeDialog();

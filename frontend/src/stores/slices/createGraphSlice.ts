@@ -1,12 +1,8 @@
+import { addEdge, applyEdgeChanges, applyNodeChanges } from '@xyflow/react';
 import { StateCreator } from 'zustand';
-import {
-    addEdge,
-    applyEdgeChanges,
-    applyNodeChanges,
-} from '@xyflow/react';
 import { isFileNode, isVisualizationNode } from '~/lib/explore/exploreNodes.utils';
-import { ExploreNode } from '~/types/explore/nodes';
 import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
+import { ExploreNode } from '~/types/explore/nodes';
 import { ExploreFlowStore, GraphSlice } from '~/types/store/exploreStore.types';
 
 export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice> = (set, get) => ({
@@ -56,21 +52,21 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
         // Smart Cleanup: If a FileNode is deleted, remove its assets from connected VisualizationNodes
         if (nodeToDelete && isFileNode(nodeToDelete)) {
             const outgoingEdges = state.edges.filter((edge) => edge.source === nodeId);
-            
+
             // Prepare updates for target nodes
             const updatedNodes = state.nodes.map((node) => {
-                const incomingEdge = outgoingEdges.find(e => e.target === node.id);
+                const incomingEdge = outgoingEdges.find((e) => e.target === node.id);
                 if (incomingEdge && isVisualizationNode(node)) {
-                     // Filter out assets that came from the deleted file node
-                     const filteredAssets = node.data.assets.filter(
+                    // Filter out assets that came from the deleted file node
+                    const filteredAssets = node.data.assets.filter(
                         (asset) => !nodeToDelete.data.assets.some((sourceAsset) => sourceAsset.id === asset.id)
                     );
                     return { ...node, data: { ...node.data, assets: filteredAssets } };
                 }
                 return node;
             }) as ExploreNode[];
-             
-             set({ nodes: updatedNodes });
+
+            set({ nodes: updatedNodes });
         }
 
         set((state) => ({
@@ -85,7 +81,7 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
     removeEdge: (edgeId) => {
         const state = get();
         const edge = state.edges.find((e) => e.id === edgeId);
-        
+
         if (edge) {
             const sourceNode = state.nodes.find((n) => n.id === edge.source);
             const targetNode = state.nodes.find((n) => n.id === edge.target);
@@ -96,11 +92,11 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
                     (asset: BaseExploreNodeAsset) =>
                         !sourceNode.data.assets.some((sourceAsset) => sourceAsset.id === asset.id)
                 );
-                
+
                 const updatedNodes = state.nodes.map((node) =>
                     node.id === edge.target ? { ...node, data: { ...node.data, assets: filteredAssets } } : node
                 ) as ExploreNode[];
-                
+
                 set({ nodes: updatedNodes });
             }
         }

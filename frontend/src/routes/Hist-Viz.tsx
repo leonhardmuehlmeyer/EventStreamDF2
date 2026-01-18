@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~
 import { SidebarProvider } from '~/components/ui/sidebar';
 import BreadcrumbNav from '~/components/BreadcrumbNav';
 import { HistogramChart } from '~/components/HistogramChart';
+import { useHandleMinerOutput } from '~/hooks/explore/useHandleMinerOutput';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useSetFilteredHistogramMutation } from '~/services/mutation';
 import { useGetHistogram } from '~/services/queries';
-import { useHandleMinerOutput } from '~/hooks/explore/useHandleMinerOutput';
 import '~/styles/hist-viz.css';
 import type { HistogramEntry } from '~/types';
 
@@ -25,7 +25,7 @@ export default function HistViz() {
     const [fileId, setFileId] = useState<string | undefined>(undefined);
     const [fileName, setFileName] = useState<string>('');
     const [outputFileId, setOutputFileId] = useState<string | null>(null);
-    
+
     const { data } = useGetHistogram(fileId);
     const { mutate: setFilteredHistogram } = useSetFilteredHistogramMutation();
 
@@ -56,7 +56,7 @@ export default function HistViz() {
 
     useHandleMinerOutput({
         nodeId: nodeId!,
-        outputFileId: outputFileId,
+        outputAssetId: outputFileId,
         outputAssetType: 'ocelFile',
         outputNodeType: 'ocelFileNode',
         inputFileName: fileName,
@@ -65,7 +65,7 @@ export default function HistViz() {
     useEffect(() => {
         if (outputFileId && node) {
             // Check if the update is complete before navigating
-            const hasOutput = node.data.assets.some(a => a.id === outputFileId && a.io === 'output');
+            const hasOutput = node.data.assets.some((a) => a.id === outputFileId && a.io === 'output');
             if (hasOutput) {
                 navigate('/data/pipeline/explore');
             }
