@@ -23,7 +23,12 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         return node.data.assets.some((asset) => asset.io === 'output');
     }, [node.data.assets]);
 
-    const { isLoading, isFetching, data } = useMineOcpt(node.id, fileId, algorithm, !hasMinedAsset);
+    const { isLoading, isFetching, data } = useMineOcpt(
+        node.id, 
+        fileId, 
+        algorithm, 
+        !hasMinedAsset
+    );
 
     useEffect(() => {
         const inputAsset = node.data.assets.find((asset) => asset.io === 'input');
@@ -38,7 +43,7 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         outputAssetId: data?.file_id ?? '',
         outputAssetType: 'ocptAsset',
         outputNodeType: 'ocptFileNode',
-        inputFileName: `ocpt_${fileName}`,
+        inputFileName: fileName,
     });
 
     useEffect(() => {

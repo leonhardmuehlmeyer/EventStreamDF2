@@ -41,11 +41,15 @@ export const useHandleMinerOutput = ({
 
         if (!alreadyExists) {
             updateNodeData(nodeId, (prev) => {
+                // Replace any existing output assets with the new one to ensure single output
                 const currentAssets = prev.assets.filter((a) => a.io !== 'output');
                 return {
+                    ...extraNodeData,
                     assets: [...currentAssets, newAsset],
+                    isStale: false, // Mark node as fresh/evaluated
                 };
             });
+
             spawnDownstreamNode(nodeId, outputNodeType);
         }
     }, [

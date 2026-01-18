@@ -49,4 +49,5 @@ export interface BaseExploreNodeData extends Record<string, unknown> {
     nodeType: ExploreNodeType;
     nodeCategory: ExploreNodeCategory;
     allowedAssetTypes: readonly AssetType[];
+    isStale?: boolean;
 }

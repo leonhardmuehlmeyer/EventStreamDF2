@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import FileShowcase from '~/components/explore/file/ui/FileShowcase';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useFileDialogStore, useStoredFiles } from '~/stores/store';
 import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
 import { ExtendedFile } from '~/types/files.types';
+import { refocusPipeline } from '~/lib/explore/refocusPipeline';
 
 interface FileSelectionDialogProps {
     isOpen: boolean;
@@ -15,6 +16,19 @@ const FileSelectionDialog: React.FC<FileSelectionDialogProps> = ({ isOpen }) => 
     const { dialogNodeId, closeDialog } = useFileDialogStore();
     const { files } = useStoredFiles();
     const { getNode, updateNodeData } = useExploreFlowStore();
+
+    // Fix for "Frozen UI" bug: Force cleanup of Radix UI body locks when dialog closes
+    useEffect(() => {
+        if (!isOpen) {
+            // Small timeout to ensure we override Radix's internal logic if it gets stuck
+            const timer = setTimeout(() => {
+                document.body.style.pointerEvents = '';
+                document.body.style.overflow = '';
+                document.body.removeAttribute('data-scroll-locked');
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
 
     useMemo(() => {
         if (!dialogNodeId) return;
@@ -29,6 +43,13 @@ const FileSelectionDialog: React.FC<FileSelectionDialogProps> = ({ isOpen }) => 
     const handleFileSelect = useCallback(
         (file: ExtendedFile) => {
             if (dialogNodeId) {
+                const node = getNode(dialogNodeId);
+                const hasExistingOutput = node?.data.assets.some((a) => a.io === 'output');
+
+                if (hasExistingOutput) {
+                    refocusPipeline(dialogNodeId);
+                }
+
                 const newAsset: BaseExploreNodeAsset = {
                     id: file.id,
                     name: file.name,
@@ -42,7 +63,7 @@ const FileSelectionDialog: React.FC<FileSelectionDialogProps> = ({ isOpen }) => 
             }
             closeDialog();
         },
-        [dialogNodeId, updateNodeData, closeDialog]
+        [dialogNodeId, updateNodeData, closeDialog, getNode]
     );
 
     return (

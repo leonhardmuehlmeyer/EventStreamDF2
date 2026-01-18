@@ -11,7 +11,8 @@ import { FileNode } from '~/types/explore/nodes';
 const OcelCollectionNode = memo<NodeProps<FileNode>>((props) => {
     const navigate = useNavigate();
     const hasFile = props.data.assets.length > 0;
-    const { data } = useGetOcelCollection(props.data.assets[0].id);
+    const fileId = props.data.assets[0]?.id ?? null;
+    const { data } = useGetOcelCollection(fileId);
     console.log(data);
 
     const openObjectEventGraph = () => {
