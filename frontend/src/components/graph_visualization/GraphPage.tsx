@@ -29,7 +29,6 @@ const nextEdgeMode = (mode: EdgeMode): EdgeMode => {
             return 'backward';
         case 'backward':
             return 'none';
-        case 'none':
         default:
             return 'both';
     }
@@ -50,7 +49,7 @@ const GraphPage: React.FC<GraphPageProps> = ({
     const [localGraph, setLocalGraph] = useState<any | null>(null);
     const [startingObjects, setStartingObjects] = useState<string[]>([]);
 
-   
+
     useEffect(() => {
         if (!editable || !localGraph) return;
 
@@ -65,57 +64,40 @@ const GraphPage: React.FC<GraphPageProps> = ({
         localGraph.links.forEach((l: any) => {
             if (l.edgeMode === 'none') return;
 
-            const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
-            const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+            const s = { name: l.source.id ?? l.source, attributes: [] };
+            const t = { name: l.target.id ?? l.target, attributes: [] };
 
-            const source = localGraph.nodes.find((n: any) => n.id === sourceId);
-            const target = localGraph.nodes.find((n: any) => n.id === targetId);
-            if (!source || !target) return;
-
-            const s = { name: source.id, attributes: [] };
-            const t = { name: target.id, attributes: [] };
-
-            if (l.edgeMode === 'both') {
-                e2o_relations.push([s, t], [t, s]);
-            }
-            if (l.edgeMode === 'forward') {
-                e2o_relations.push([s, t]);
-            }
-            if (l.edgeMode === 'backward') {
-                e2o_relations.push([t, s]);
-            }
+            if (l.edgeMode === 'both') e2o_relations.push([s, t], [t, s]);
+            if (l.edgeMode === 'forward') e2o_relations.push([s, t]);
+            if (l.edgeMode === 'backward') e2o_relations.push([t, s]);
         });
 
         onGenericPayloadChange?.({ start_types, e2o_relations, o2o_relations });
     }, [localGraph, startingObjects, editable]);
 
-    
 
     useEffect(() => {
         if (!data) return;
-
-        // Prevent resetting the graph when in generic/editable mode if it already exists.
-        // This ensures the user's selections are preserved when the parent component updates (e.g. after mining).
         if (editable && localGraph) return;
 
         const nodes: any[] = [];
         const links: any[] = [];
 
-        data.event_types.forEach((et: string) => {
+        data.event_types.forEach((et: string) =>
             nodes.push({
                 id: et,
                 group: 'event',
                 deselected: caseNotionGraph?.deselected_event_types?.includes(et) ?? false,
-            });
-        });
+            })
+        );
 
-        data.object_types.forEach((ot: string) => {
+        data.object_types.forEach((ot: string) =>
             nodes.push({
                 id: ot,
                 group: 'object',
                 deselected: caseNotionGraph?.deselected_object_types?.includes(ot) ?? false,
-            });
-        });
+            })
+        );
 
         data.arcs.forEach((a: any) => {
             const isDeselected =
@@ -123,21 +105,24 @@ const GraphPage: React.FC<GraphPageProps> = ({
                     (da) => da.source_type === a.source_type && da.target_type === a.target_type
                 ) ?? false;
 
-            const edgeMode: EdgeMode = isDeselected ? 'none' : 'both';
+            const edgeMode: EdgeMode = isDeselected
+                ? 'none'
+                : editable
+                ? 'both'
+                : 'forward';
 
             links.push({
                 source: a.source_type,
                 target: a.target_type,
                 edgeMode,
-                deselected: edgeMode === 'none',
                 originalEdgeMode: edgeMode,
+                deselected: edgeMode === 'none',
             });
         });
 
         setLocalGraph({ nodes, links });
     }, [data, caseNotionGraph, editable]);
 
-    
 
     useEffect(() => {
         if (!localGraph || !svgRef.current || !containerRef.current) return;
@@ -150,35 +135,31 @@ const GraphPage: React.FC<GraphPageProps> = ({
 
         const g = svg.attr('viewBox', `0 0 ${width} ${height}`).append('g');
 
-        svg.call(
-            d3.zoom<SVGSVGElement, unknown>().on('zoom', (event) => {
-                g.attr('transform', event.transform);
-            })
-        );
+         svg.call(
+      d3.zoom<SVGSVGElement, unknown>().on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      })
+    );
 
-       
-        if (editable) {
-            const defs = svg.append('defs');
 
-            defs.append('marker')
-                .attr('id', 'arrow')
-                .attr('viewBox', '0 -5 10 10')
-                .attr('refX', 25)
-                .attr('refY', 0)
-                .attr('markerWidth', 6)
-                .attr('markerHeight', 6)
-                .attr('orient', 'auto-start-reverse')
-                .append('path')
-                .attr('d', 'M0,-5L10,0L0,5')
-                .attr('fill', '#000');
-        }
+        const defs = svg.append('defs');
+
+        defs.append('marker')
+    .attr('id', 'arrow')
+    .attr('viewBox', '0 -3 6 6')
+    .attr('refX', 22)          
+    .attr('refY', 0)
+    .attr('markerWidth', 4)   
+    .attr('markerHeight', 4)
+    .attr('orient', 'auto-start-reverse')
+    .append('path')
+    .attr('d', 'M0,-3L6,0L0,3') 
+    .attr('fill', '#222');
+
 
         const simulation = d3
             .forceSimulation(localGraph.nodes)
-            .force(
-                'link',
-                d3.forceLink(localGraph.links).id((d: any) => d.id).distance(160)
-            )
+            .force('link', d3.forceLink(localGraph.links).id((d: any) => d.id).distance(160))
             .force('charge', d3.forceManyBody().strength(-350))
             .force('center', d3.forceCenter(width / 2, height / 2))
             .force('collision', d3.forceCollide().radius(45));
@@ -192,7 +173,6 @@ const GraphPage: React.FC<GraphPageProps> = ({
             .attr('stroke-width', 3)
             .on('click', (_, d: any) => {
                 if (!editable) return;
-
                 d.edgeMode = nextEdgeMode(d.edgeMode);
                 d.deselected = d.edgeMode === 'none';
                 updateLinkStyles();
@@ -200,19 +180,15 @@ const GraphPage: React.FC<GraphPageProps> = ({
 
         const updateLinkStyles = () => {
             link
-                .attr('stroke', (d: any) =>
-                    d.edgeMode === 'none' ? '#C0C0C0' : 'black'
-                )
-                .attr('stroke-opacity', (d: any) =>
-                    d.edgeMode === 'none' ? 0.35 : 0.85
-                )
+                .attr('stroke', (d: any) => (d.edgeMode === 'none' ? '#C0C0C0' : 'black'))
+                .attr('stroke-opacity', (d: any) => (d.edgeMode === 'none' ? 0.35 : 0.85))
                 .attr('marker-end', (d: any) =>
-                    editable && (d.edgeMode === 'forward' || d.edgeMode === 'both')
+                    d.edgeMode === 'forward' || d.edgeMode === 'both'
                         ? 'url(#arrow)'
                         : null
                 )
                 .attr('marker-start', (d: any) =>
-                    editable && (d.edgeMode === 'backward' || d.edgeMode === 'both')
+                    d.edgeMode === 'backward' || d.edgeMode === 'both'
                         ? 'url(#arrow)'
                         : null
                 );
@@ -220,7 +196,7 @@ const GraphPage: React.FC<GraphPageProps> = ({
 
         updateLinkStyles();
 
-        
+
 
         const getFill = (d: any) =>
             d.deselected
@@ -250,6 +226,8 @@ const GraphPage: React.FC<GraphPageProps> = ({
             updateLinkStyles();
         };
 
+
+
         const node = g
             .append('g')
             .selectAll('circle')
@@ -257,32 +235,34 @@ const GraphPage: React.FC<GraphPageProps> = ({
             .enter()
             .append('circle')
             .attr('r', 12)
-            .attr('fill', getFill)
-            .attr('stroke', (d: any) =>
-                startingObjects.includes(d.id) ? 'black' : getStroke(d)
+            .attr('fill', (d: any) =>
+                d.deselected
+                    ? '#C0C0C0'
+                    : d.group === 'object'
+                    ? getColorForObject(fileId, d.id)
+                    : 'white'
             )
-            .attr('stroke-width', (d: any) =>
-                startingObjects.includes(d.id) ? 6 : getStrokeWidth(d)
-            )
+            .attr('stroke', 'black')
+            .attr('stroke-width', 2)
             .call(
-                d3
-                    .drag<SVGCircleElement, any>()
-                    .on('start', (event, d) => {
-                        if (!event.active) simulation.alphaTarget(0.3).restart();
-                        d.fx = d.x;
-                        d.fy = d.y;
-                    })
-                    .on('drag', (event, d) => {
-                        d.fx = event.x;
-                        d.fy = event.y;
-                    })
-                    .on('end', (event, d) => {
-                        if (!event.active) simulation.alphaTarget(0);
-                        d.fx = null;
-                        d.fy = null;
-                    })
-            )
-            .on('click', function (event, d: any) {
+  d3
+    .drag<SVGCircleElement, any>()
+    .on('start', (event, d) => {
+        if (!event.active) simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    })
+    .on('drag', (event, d) => {
+        d.fx = event.x;
+        d.fy = event.y;
+    })
+    .on('end', (event, d) => {
+        if (!event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    })
+)
+                    .on('click', function (event, d: any) {
                 if (!editable) return;
 
                 const self = d3.select(this);
@@ -303,6 +283,9 @@ const GraphPage: React.FC<GraphPageProps> = ({
                 }
             });
 
+
+
+
         const label = g
             .append('g')
             .selectAll('text')
@@ -311,10 +294,8 @@ const GraphPage: React.FC<GraphPageProps> = ({
             .append('text')
             .text((d: any) => d.id)
             .attr('font-size', 10)
-            .attr('font-weight', '600')
-            .attr('text-anchor', 'middle')
             .attr('dy', -18)
-            .attr('fill', '#333');
+            .attr('text-anchor', 'middle');
 
         simulation.on('tick', () => {
             link
@@ -329,61 +310,71 @@ const GraphPage: React.FC<GraphPageProps> = ({
     }, [localGraph, editable, startingObjects, fileId, getColorForObject]);
 
     if (isLoading)
-        return <div className="flex w-full h-full justify-center items-center">Loading graph...</div>;
-
-    if (error)
-        return <div className="flex w-full h-full justify-center items-center text-red-500">Failed to load graph</div>;
-
     return (
-        <div className="w-full h-full p-2">
-            {editable && (
-                <div className="mt-2 flex flex-col gap-2">
-                    {/* Section 1: Active State with Badges */}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <span className="font-semibold text-foreground/90">Starting Object Types:</span>
-                        {startingObjects.length > 0 ? (
-                            <div className="flex gap-1">
-                                {startingObjects.map((obj) => (
-                                    <span
-                                        key={obj}
-                                        className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground"
-                                    >
-                                        <LegendRect size={8} fill={getDeterministicColor(obj)} />
-                                        {obj}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <span className="italic text-muted-foreground/50">None selected</span>
-                        )}
-                    </div>
-
-                    {/* Section 2: Horizontal Control Legend */}
-                    <div className="flex items-center gap-4 border-t border-border/50 pt-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <MousePointer className="h-3 w-3" />
-                            <span>Select/Deselect</span>
-                        </div>
-                        <div className="h-3 w-[1px] bg-border" />
-                        <div className="flex items-center gap-2">
-                            <span className="flex items-center gap-1">
-                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                                    Shift
-                                </kbd>
-                                +
-                                <MousePointer className="h-3 w-3" />
-                            </span>
-                            <span>Mark as start object</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div ref={containerRef} className="w-full h-full">
-                <svg ref={svgRef} className="w-full h-full" />
-            </div>
-        </div>
+      <div className="flex w-full h-full justify-center items-center">
+        Loading graph...
+      </div>
     );
+
+  if (error)
+    return (
+      <div className="flex w-full h-full justify-center items-center text-red-500">
+        Failed to load graph
+      </div>
+    );
+
+  return (
+    <div className="w-full h-full p-2">
+      {editable && (
+        <div className="mt-2 flex flex-col gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground/90">
+              Starting Object Types:
+            </span>
+            {startingObjects.length > 0 ? (
+              <div className="flex gap-1">
+                {startingObjects.map((obj) => (
+                  <span
+                    key={obj}
+                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground"
+                  >
+                    <LegendRect size={8} fill={getDeterministicColor(obj)} />
+                    {obj}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="italic text-muted-foreground/50">
+                None selected
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <MousePointer className="h-3 w-3" />
+              <span>Select/Deselect</span>
+            </div>
+            <div className="h-3 w-[1px] bg-border" />
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                  Shift
+                </kbd>
+                +
+                <MousePointer className="h-3 w-3" />
+              </span>
+              <span>Mark as start object</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div ref={containerRef} className="w-full h-full">
+        <svg ref={svgRef} className="w-full h-full" />
+      </div>
+    </div>
+  );
 };
 
 export default GraphPage;
