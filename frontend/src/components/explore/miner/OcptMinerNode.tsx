@@ -4,14 +4,14 @@ import { Position } from '@xyflow/react';
 import { Pickaxe } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '~/components/ui/select';
 import BaseMinerNode from '~/components/explore/miner/BaseMinerNode';
+import { useHandleMinerOutput } from '~/hooks/explore/useHandleMinerOutput';
+import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useMineOcpt } from '~/services/queries';
 import {
-    BaseExploreNodeAsset,
     BaseExploreNodeDropdownActionType,
     BaseExploreNodeDropdownOption,
 } from '~/types/explore/nodeData/baseNodeData';
 import { MinerNode } from '~/types/explore/nodes';
-import { useExploreFlowStore } from '~/stores/exploreStore';
 
 const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
     const { updateNodeData } = useExploreFlowStore();
@@ -33,37 +33,23 @@ const OcptMinerNode = memo<NodeProps<MinerNode>>((node) => {
         setFileName(inputAsset.name);
     }, [node.data.assets]);
 
-    useEffect(() => {
-        if (!data || !fileName) return;
-
-        const asset: BaseExploreNodeAsset = {
-            id: data.file_id,
-            io: 'output',
-            origin: 'mined',
-            type: 'ocptAsset',
-            name: `ocpt_${fileName}`,
-        };
-
-        updateNodeData(node.id, (prev) => {
-             // Avoid adding duplicate assets if data triggers multiple times
-             const alreadyExists = prev.assets.some(a => a.id === asset.id && a.io === 'output');
-             if (alreadyExists) return prev;
-             
-             return {
-                 assets: [...prev.assets, asset]
-             };
-        });
-    }, [data, fileName, node.id, updateNodeData]);
+    useHandleMinerOutput({
+        nodeId: node.id,
+        outputAssetId: data?.file_id ?? '',
+        outputAssetType: 'ocptAsset',
+        outputNodeType: 'ocptFileNode',
+        inputFileName: `ocpt_${fileName}`,
+    });
 
     useEffect(() => {
         if (algorithm === node.data.algorithm) return;
 
         updateNodeData(node.id, (prev) => {
-             const newAssets = prev.assets.filter((asset) => asset.io !== 'output');
-             return {
+            const newAssets = prev.assets.filter((asset) => asset.io !== 'output');
+            return {
                 assets: newAssets,
                 algorithm: algorithm,
-             }
+            };
         });
     }, [algorithm, node.data.algorithm, node.id, updateNodeData]);
 

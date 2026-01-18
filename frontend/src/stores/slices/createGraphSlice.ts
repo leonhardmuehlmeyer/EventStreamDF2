@@ -24,30 +24,6 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
     },
     onConnect: (connection) => {
         const state = get();
-        const { source, target } = connection;
-        const sourceNode = state.nodes.find((n) => n.id === source);
-        const targetNode = state.nodes.find((n) => n.id === target);
-
-        if (sourceNode && targetNode) {
-            // Asset Propagation Logic
-            const newAssets: BaseExploreNodeAsset[] = [
-                ...(targetNode.data.assets || []),
-                ...(sourceNode.data.assets || [])
-                    .filter((asset: BaseExploreNodeAsset) => asset.io === 'output')
-                    .map((asset: BaseExploreNodeAsset) => ({
-                        ...asset,
-                        io: 'input' as const,
-                    })),
-            ];
-            
-            // Update target node data
-             const updatedNodes = state.nodes.map((node) =>
-                node.id === target ? { ...node, data: { ...node.data, assets: newAssets } } : node
-            ) as ExploreNode[];
-            
-            set({ nodes: updatedNodes });
-        }
-
         const newEdge = {
             ...connection,
             animated: true,

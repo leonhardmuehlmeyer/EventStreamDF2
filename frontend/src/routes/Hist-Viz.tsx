@@ -14,7 +14,7 @@ import { HistogramChart } from '~/components/HistogramChart';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useSetFilteredHistogramMutation } from '~/services/mutation';
 import { useGetHistogram } from '~/services/queries';
-import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
+import { useHandleMinerOutput } from '~/hooks/explore/useHandleMinerOutput';
 import '~/styles/hist-viz.css';
 import type { HistogramEntry } from '~/types';
 
@@ -23,6 +23,9 @@ export default function HistViz() {
     const [sortMode, setSortMode] = useState<'name' | 'bins' | 'random'>('bins');
     const { nodeId } = useParams<{ nodeId: string }>();
     const [fileId, setFileId] = useState<string | undefined>(undefined);
+    const [fileName, setFileName] = useState<string>('');
+    const [outputFileId, setOutputFileId] = useState<string | null>(null);
+    
     const { data } = useGetHistogram(fileId);
     const { mutate: setFilteredHistogram } = useSetFilteredHistogramMutation();
 
@@ -37,17 +40,37 @@ export default function HistViz() {
     const [isEditing, setIsEditing] = useState(true);
 
     // Get color store
-    const { getNode, histogramStates, setHistogramState, getColorForObject, updateNodeData } = useExploreFlowStore();
+    const { getNode, histogramStates, setHistogramState, getColorForObject } = useExploreFlowStore();
     const node = nodeId ? getNode(nodeId) : undefined;
 
     useMemo(() => {
         if (node) {
             const inputFile = node.data.assets.find((asset) => asset.io === 'input');
             setFileId(inputFile?.id);
+            setFileName(inputFile?.name || '');
         } else {
             setFileId(undefined);
+            setFileName('');
         }
     }, [node]);
+
+    useHandleMinerOutput({
+        nodeId: nodeId!,
+        outputFileId: outputFileId,
+        outputAssetType: 'ocelFile',
+        outputNodeType: 'ocelFileNode',
+        inputFileName: fileName,
+    });
+
+    useEffect(() => {
+        if (outputFileId && node) {
+            // Check if the update is complete before navigating
+            const hasOutput = node.data.assets.some(a => a.id === outputFileId && a.io === 'output');
+            if (hasOutput) {
+                navigate('/data/pipeline/explore');
+            }
+        }
+    }, [outputFileId, node, navigate]);
 
     useEffect(() => {
         if (!data) return;
@@ -215,21 +238,8 @@ export default function HistViz() {
             { fileId: fileId!, payload: finalPayload },
             {
                 onSuccess: (data) => {
-                    console.log(data);
-                    const newAsset: BaseExploreNodeAsset = {
-                        id: data[0],
-                        io: 'output',
-                        origin: 'mined',
-                        type: 'ocelFile',
-                        name: `ocel_${data[0]}`,
-                    };
-                    if (nodeId) {
-                        updateNodeData(nodeId, (prev) => {
-                            const otherAssets = prev.assets.filter((asset) => asset.io !== 'output');
-                            return { assets: [...otherAssets, newAsset] };
-                        });
-                    }
-                    navigate('/data/pipeline/explore');
+                    console.log('Filtered histogram created:', data);
+                    setOutputFileId(data[0]);
                 },
             }
         );

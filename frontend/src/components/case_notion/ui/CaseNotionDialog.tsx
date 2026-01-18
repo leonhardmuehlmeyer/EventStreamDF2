@@ -22,11 +22,10 @@ import {
     SelectValue,
 } from '~/components/ui/select';
 import GraphPage from '~/components/graph_visualization/GraphPage';
+import { useHandleMinerOutput } from '~/hooks/explore/useHandleMinerOutput';
 import { getAdvancedCN, getConnectedComponentsCN, getGenericCN, getTraditionalCN } from '~/services/api';
 import { useGetCaseNotions, useGetOcelObjectTypes } from '~/services/queries';
-import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
 import { MinerNode } from '~/types/explore/nodes';
-import { useExploreFlowStore } from '~/stores/exploreStore';
 
 interface CaseNotionDialogProps {
     node: NodeProps<MinerNode>;
@@ -37,7 +36,6 @@ interface CaseNotionDialogProps {
 }
 
 const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange }: CaseNotionDialogProps) => {
-    const { updateNodeData } = useExploreFlowStore();
     const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('traditional');
     const [selectedObjectType, setSelectedObjectType] = useState<string>('default');
     const [currentCnFileId, setCurrentCnFileId] = useState<string>('');
@@ -102,26 +100,19 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange }: Case
         setMakeFinalFetch(true);
     };
 
+    useHandleMinerOutput({
+        nodeId: node.id,
+        outputAssetId: cnGet.data?.case_ocels_file_id,
+        outputAssetType: 'ocelCollectionFile',
+        outputNodeType: 'ocelCollectionNode',
+        inputFileName: fileName,
+    });
+
     useEffect(() => {
-        if (!cnGet.data || !fileName) return;
-
-        const asset: BaseExploreNodeAsset = {
-            id: cnGet.data.case_ocels_file_id,
-            io: 'output',
-            origin: 'mined',
-            type: 'ocelCollectionFile',
-            name: `cn_${cnGet.data.case_ocels_file_id}`,
-        };
-
-        updateNodeData(node.id, (prev) => {
-            const currentAssets = prev.assets.filter((asset) => asset.io !== 'output');
-            return {
-                assets: [...currentAssets, asset],
-            };
-        });
-
-        onOpenChange(false);
-    }, [cnGet.data, fileName, node.id, onOpenChange, updateNodeData]);
+        if (cnGet.data) {
+            onOpenChange(false);
+        }
+    }, [cnGet.data, onOpenChange]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
