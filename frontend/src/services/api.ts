@@ -60,33 +60,34 @@ export const setFilteredHistogram = async (fileId: string, payload: any) => {
     return response.data;
 };
 
-export const getTraditionalCN = async (fileId: string, objectType: string, newFileId: string) => {
-    const response = await api.get(
-        `/v1/case_notion/traditional/${fileId}?object_type=${objectType}&case_notion_file_id=${newFileId}`
-    );
-    return response.data;
-};
+export const mineCaseNotion = async (
+    fileId: string,
+    algorithm: string,
+    objectType: string,
+    newFileId: string,
+    payload?: any
+) => {
+    let endpoint = algorithm;
+    if (algorithm === 'connected-component') endpoint = 'connected_components';
+    if (algorithm === 'generic') endpoint = 'generic_case_notion';
 
-export const getGenericCN = async (fileId: string, payload: any, newFileId: string) => {
-    const response = await api.post(
-        `/v1/case_notion/generic_case_notion/${fileId}?case_notion_file_id=${newFileId}`,
-        payload
-    );
-    return response.data;
-};
+    const params = new URLSearchParams({
+        case_notion_file_id: newFileId,
+    });
 
-export const getConnectedComponentsCN = async (fileId: string, objectType: string, newFileId: string) => {
-    const response = await api.get(
-        `/v1/case_notion/connected_components/${fileId}?object_type=${objectType}&case_notion_file_id=${newFileId}`
-    );
-    return response.data;
-};
-
-export const getAdvancedCN = async (fileId: string, objectType: string, newFileId: string) => {
-    const response = await api.get(
-        `/v1/case_notion/advanced/${fileId}?object_type=${objectType}&case_notion_file_id=${newFileId}`
-    );
-    return response.data;
+    if (algorithm === 'generic') {
+        const response = await api.post(
+            `/v1/case_notion/${endpoint}/${fileId}?${params.toString()}`,
+            payload
+        );
+        return response.data;
+    } else {
+        params.append('object_type', objectType);
+        const response = await api.get(
+            `/v1/case_notion/${endpoint}/${fileId}?${params.toString()}`
+        );
+        return response.data;
+    }
 };
 
 export const saveFilteredOcel = async (payload: { fileId: string; nodes: any[]; edges: any[] }) => {

@@ -1,6 +1,7 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useEffect, type ReactNode } from 'react';
 import { Pickaxe } from 'lucide-react';
 import BaseExploreNode from '~/components/explore/BaseExploreNode';
+import { useExploreFlowStore } from '~/stores/exploreStore';
 import {
     BaseExploreNodeDropdownActionType,
     BaseExploreNodeDropdownOption,
@@ -19,6 +20,7 @@ interface MinerNodeProps {
     dropdownOptions: BaseExploreNodeDropdownOption[];
     isLoading?: boolean;
     onDropdownAction?: (action: BaseExploreNodeDropdownActionType) => void;
+    onReset?: () => void;
     customActions?: ReactNode;
     children?: ReactNode;
 }
@@ -34,10 +36,27 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
         dropdownOptions,
         isLoading,
         onDropdownAction,
+        onReset,
         customActions,
         children,
     } = props;
-    const { assets } = data;
+    const { assets, isStale } = data;
+    const { updateNodeData } = useExploreFlowStore();
+
+    useEffect(() => {
+        if (isStale) {
+            // 1. Trigger specific miner cleanup
+            if (onReset) {
+                onReset();
+            }
+
+            // 2. Perform generic miner cleanup (remove outputs, unset flag)
+            updateNodeData(id, (prev) => ({
+                assets: prev.assets.filter((asset) => asset.io !== 'output'),
+                isStale: false,
+            }));
+        }
+    }, [isStale, id, onReset, updateNodeData]);
 
     const renderFileContent = () => {
         if (assets.length === 0) return <p>Ready to mine!</p>;

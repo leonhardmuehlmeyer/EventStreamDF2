@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
 import { NodeProps } from '@xyflow/react';
 import { FileSymlink, Loader2, Pickaxe } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,8 +21,8 @@ import {
     SelectValue,
 } from '~/components/ui/select';
 import GraphPage from '~/components/graph_visualization/GraphPage';
-import { useHandleMinerOutput } from '~/hooks/explore/useHandleMinerOutput';
-import { getAdvancedCN, getConnectedComponentsCN, getGenericCN, getTraditionalCN } from '~/services/api';
+import { handleMinerOutput } from '~/lib/explore/flowActions';
+import { useMineCaseNotionMutation } from '~/services/mutation';
 import { useGetCaseNotions, useGetOcelObjectTypes } from '~/services/queries';
 import { MinerNode } from '~/types/explore/nodes';
 
@@ -31,11 +30,12 @@ interface CaseNotionDialogProps {
     node: NodeProps<MinerNode>;
     fileId: string | null;
     fileName: string;
+    isStale: boolean | undefined;
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
 }
 
-const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange }: CaseNotionDialogProps) => {
+const CaseNotionDialog = ({ node, fileId, fileName, isStale, isOpen, onOpenChange }: CaseNotionDialogProps) => {
     const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>('traditional');
     const [selectedObjectType, setSelectedObjectType] = useState<string>('default');
     const [currentCnFileId, setCurrentCnFileId] = useState<string>('');
@@ -45,54 +45,49 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange }: Case
     const [genericPayload, setGenericPayload] = useState<any>(null);
 
     const { data: ocelObjectTypesData } = useGetOcelObjectTypes(fileId);
-    const cnGet = useGetCaseNotions(currentCnFileId, makeFinalFetch);
+    
+    const { mutate, isPending, data, reset } = useMineCaseNotionMutation();
 
-    const { mutate, isPending, data, reset } = useMutation({
-        mutationFn: async (algorithm: string) => {
-            if (!fileId) {
-                throw new Error('File ID is not available.');
-            }
-            const newCaseNotionFileId = uuidv4();
-            setCurrentCnFileId(newCaseNotionFileId);
-            console.log('generic pay load');
-            console.log(genericPayload);
-
-            switch (algorithm) {
-                case 'traditional':
-                    return getTraditionalCN(fileId, selectedObjectType, newCaseNotionFileId);
-                case 'connected-component':
-                    return getConnectedComponentsCN(fileId, selectedObjectType, newCaseNotionFileId);
-                case 'advanced':
-                    return getAdvancedCN(fileId, selectedObjectType, newCaseNotionFileId);
-                case 'generic':
-                    if (genericPayload.start_types.length === 0) {
-                        return;
-                    }
-
-                    return getGenericCN(fileId, genericPayload, newCaseNotionFileId);
-                default:
-                    throw new Error(`Unknown or unsupported algorithm: ${algorithm}`);
-            }
-        },
-        onSuccess: (data) => {
-            console.log('Mining successful:', data);
+    // Factory reset when node becomes stale (Refocus)
+    useEffect(() => {
+        if (isStale) {
+            setCurrentCnFileId('');
+            setMakeFinalFetch(false);
+            setGenericPayload(null);
             setIsDirty(false);
-        },
-        onError: (error) => {
-            console.error('Mining failed:', error);
-        },
-    });
+            reset();
+        }
+    }, [isStale, reset]);
+
+    const cnGet = useGetCaseNotions(isStale ? '' : currentCnFileId, makeFinalFetch && !isStale);
 
     const handleMineClick = async () => {
         if (ocelObjectTypesData) {
             console.log(ocelObjectTypesData.object_types);
         }
 
-        if (selectedAlgorithm) {
+        if (selectedAlgorithm && fileId) {
             setMakeFinalFetch(false);
-            mutate(selectedAlgorithm);
+            const newCaseNotionFileId = uuidv4();
+            setCurrentCnFileId(newCaseNotionFileId);
+            
+            mutate({
+                fileId,
+                algorithm: selectedAlgorithm,
+                objectType: selectedObjectType,
+                newFileId: newCaseNotionFileId,
+                payload: genericPayload
+            }, {
+                onSuccess: (data) => {
+                    console.log('Mining successful:', data);
+                    setIsDirty(false);
+                },
+                onError: (error) => {
+                    console.error('Mining failed:', error);
+                }
+            });
         } else {
-            console.warn('No algorithm selected.');
+            console.warn('No algorithm selected or file ID missing.');
         }
     };
 
@@ -100,13 +95,17 @@ const CaseNotionDialog = ({ node, fileId, fileName, isOpen, onOpenChange }: Case
         setMakeFinalFetch(true);
     };
 
-    useHandleMinerOutput({
-        nodeId: node.id,
-        outputAssetId: cnGet.data?.case_ocels_file_id,
-        outputAssetType: 'ocelCollectionFile',
-        outputNodeType: 'ocelCollectionNode',
-        inputFileName: fileName,
-    });
+    useEffect(() => {
+        if (cnGet.data?.case_ocels_file_id && !isStale) {
+            handleMinerOutput({
+                nodeId: node.id,
+                outputAssetId: cnGet.data.case_ocels_file_id,
+                outputAssetType: 'ocelCollectionFile',
+                outputNodeType: 'ocelCollectionNode',
+                inputFileName: fileName,
+            });
+        }
+    }, [cnGet.data?.case_ocels_file_id, node.id, fileName, isStale]);
 
     useEffect(() => {
         if (cnGet.data) {

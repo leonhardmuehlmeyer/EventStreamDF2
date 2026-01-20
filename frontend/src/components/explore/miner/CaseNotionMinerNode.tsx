@@ -9,7 +9,7 @@ import { BaseExploreNodeDropdownOption } from '~/types/explore/nodeData/baseNode
 import { MinerNode } from '~/types/explore/nodes';
 
 const CaseNotionMinerNode = memo<NodeProps<MinerNode>>((node) => {
-    const { assets } = node.data;
+    const { assets, isStale } = node.data;
     const [fileId, setFileId] = useState<string | null>(null);
     const [fileName, setFileName] = useState<string>('');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -23,6 +23,12 @@ const CaseNotionMinerNode = memo<NodeProps<MinerNode>>((node) => {
     const hasMinedAsset = useMemo(() => {
         return assets.some((asset) => asset.io === 'output' && asset.origin === 'mined');
     }, [assets]);
+
+    const handleReset = () => {
+        setFileId(null);
+        setFileName('');
+        setIsDialogOpen(false);
+    };
 
     const renderActions = () => {
         if (!fileId) return null;
@@ -56,11 +62,13 @@ const CaseNotionMinerNode = memo<NodeProps<MinerNode>>((node) => {
             dropdownOptions={dropdownOptions}
             isLoading={false}
             customActions={renderActions()}
+            onReset={handleReset}
         >
             <CaseNotionDialog
                 node={node}
                 fileId={fileId}
                 fileName={fileName}
+                isStale={isStale}
                 isOpen={isDialogOpen}
                 onOpenChange={setIsDialogOpen}
             />

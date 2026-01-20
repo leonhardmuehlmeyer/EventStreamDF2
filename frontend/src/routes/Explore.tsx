@@ -15,6 +15,7 @@ import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
 import { useEventHandlers } from '~/hooks/explore/useEventHandlers';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useFileDialogStore } from '~/stores/store';
+import { RefocusProgressPanel } from '~/components/explore/RefocusProgressPanel';
 
 const nodeTypes = {
     ocptMinerNode: OcptMinerNode,
@@ -57,6 +58,7 @@ const Explore: React.FC = () => {
                         >
                             <Background />
                             <Controls position="top-left" />
+                            <RefocusProgressPanel />
                         </ReactFlow>
                     </div>
                 </SidebarInset>
