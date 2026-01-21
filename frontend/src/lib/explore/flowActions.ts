@@ -93,7 +93,7 @@ export const handleMinerOutput = ({
 }: HandleMinerOutputParams) => {
     if (!outputAssetId || !inputFileName) return;
 
-    const { updateNodeData, getNode } = useExploreFlowStore.getState();
+    const { updateNodeData, getNode, edges, nodes } = useExploreFlowStore.getState();
     const node = getNode(nodeId);
     if (!node) return;
 
@@ -105,15 +105,86 @@ export const handleMinerOutput = ({
         name: inputFileName,
     };
 
-    const alreadyExists = node.data.assets.some((a) => a.id === newAsset.id && a.io === 'output');
+    // 1. Always update the Miner Node with the new output asset
+    updateNodeData(nodeId, (prev) => {
+        const currentAssets = prev.assets.filter((a) => a.io !== 'output');
+        return {
+            assets: [...currentAssets, newAsset],
+        };
+    });
 
-    if (!alreadyExists) {
-        updateNodeData(nodeId, (prev) => {
-            const currentAssets = prev.assets.filter((a) => a.io !== 'output');
-            return {
-                assets: [...currentAssets, newAsset],
-            };
+    // 2. Check for existing downstream connection
+    const existingEdge = edges.find((edge) => edge.source === nodeId);
+    
+    if (existingEdge) {
+        const targetNode = nodes.find((n) => n.id === existingEdge.target);
+        
+        // If the connected node is of the correct type, update it instead of spawning a new one
+        if (targetNode && targetNode.type === outputNodeType) {
+            updateNodeData(targetNode.id, (prev) => {
+                // File nodes typically have 1 output asset (the file itself).
+                // We replace any existing output assets with the new one.
+                const otherAssets = prev.assets.filter((a) => a.io !== 'output');
+                return {
+                    assets: [...otherAssets, { ...newAsset, io: 'output' }],
+                };
+            });
+            return; 
+        }
+    }
+
+    // 3. If no suitable downstream node exists, spawn a new one
+    spawnDownstreamNode(nodeId, outputNodeType);
+};
+
+/**
+ * Manually pulls assets from upstream nodes connected to the target node.
+ * Useful for syncing stale nodes or re-triggering propagation.
+ */
+export const pullUpstreamData = (targetNodeId: string) => {
+    const { edges, getNode, updateNodeData } = useExploreFlowStore.getState();
+    const targetNode = getNode(targetNodeId);
+    
+    if (!targetNode) return;
+
+    // Find incoming edges
+    const incomingEdges = edges.filter(edge => edge.target === targetNodeId);
+    
+    if (incomingEdges.length === 0) return;
+
+    const newAssets: BaseExploreNodeAsset[] = [];
+
+    incomingEdges.forEach(edge => {
+        const sourceNode = getNode(edge.source);
+        if (sourceNode) {
+             const propagatedAssets = (sourceNode.data.assets || [])
+                .filter((asset) => asset.io === 'output')
+                .map((asset) => {
+                    // If the target is a File Node, it acts as a pass-through.
+                    if (isFileNode(targetNode)) {
+                        return { ...asset, io: 'output' } as BaseExploreNodeAsset;
+                    }
+                    // For other nodes, it comes in as input
+                    return { ...asset, io: 'input' } as BaseExploreNodeAsset;
+                });
+            newAssets.push(...propagatedAssets);
+        }
+    });
+
+    if (newAssets.length > 0) {
+         updateNodeData(targetNodeId, (prev) => {
+            // Keep existing non-input assets (e.g. outputs)
+            // But usually we want to REPLACE inputs if we are pulling fresh data.
+            // If we have multiple inputs, this might need refinement, but for now assuming replacement of inputs is desired behavior for a "Refresh".
+            const otherAssets = (prev.assets || []).filter(a => a.io !== 'input');
+            
+            // Deduplicate new assets
+             const uniqueNewAssets = newAssets.filter(
+                (newAsset, index, self) =>
+                    index === self.findIndex((t) => t.id === newAsset.id && t.io === newAsset.io)
+            );
+
+            return { assets: [...otherAssets, ...uniqueNewAssets] };
         });
-        spawnDownstreamNode(nodeId, outputNodeType);
     }
 };

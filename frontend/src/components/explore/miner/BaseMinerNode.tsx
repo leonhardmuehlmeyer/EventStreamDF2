@@ -1,7 +1,10 @@
-import { memo, useEffect, type ReactNode } from 'react';
-import { Pickaxe } from 'lucide-react';
+import { memo, type ReactNode, useEffect } from 'react';
+import { useNodeConnections } from '@xyflow/react';
+import { Pickaxe, RefreshCw } from 'lucide-react';
+import { Button } from '~/components/ui/button';
 import BaseExploreNode from '~/components/explore/BaseExploreNode';
 import { useExploreFlowStore } from '~/stores/exploreStore';
+import { pullUpstreamData } from '~/lib/explore/flowActions';
 import {
     BaseExploreNodeDropdownActionType,
     BaseExploreNodeDropdownOption,
@@ -41,7 +44,17 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
         children,
     } = props;
     const { assets, isStale } = data;
-    const { updateNodeData } = useExploreFlowStore();
+    const { updateNodeData, getNode } = useExploreFlowStore();
+
+    // Check for incoming connections (assuming miners usually have one target handle)
+    // We filter for 'target' connections to see if we are connected upstream.
+    const connections = useNodeConnections({ handleType: 'target' });
+    const sourceNode = connections[0] ? getNode(connections[0].source) : undefined;
+    const sourceHasOutputAsset = sourceNode?.data.assets.some((asset) => asset.io === 'output');
+
+    const hasInputAsset = assets.some((asset) => asset.io === 'input');
+    const isWaitingForInput = sourceHasOutputAsset && !hasInputAsset;
+    const isPendingUpdate = !sourceHasOutputAsset && !hasInputAsset;
 
     useEffect(() => {
         if (isStale) {
@@ -51,15 +64,57 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
             }
 
             // 2. Perform generic miner cleanup (remove outputs, unset flag)
+            // Note: We also remove INPUT assets here to force the "Waiting for Input" state
+            // if the user wants to re-pull fresh data.
             updateNodeData(id, (prev) => ({
-                assets: prev.assets.filter((asset) => asset.io !== 'output'),
+                assets: prev.assets.filter((asset) => asset.io !== 'output' && asset.io !== 'input'),
                 isStale: false,
             }));
         }
     }, [isStale, id, onReset, updateNodeData]);
 
     const renderFileContent = () => {
-        if (assets.length === 0) return <p>Ready to mine!</p>;
+        if (isWaitingForInput) {
+            return (
+                <div className="flex flex-col items-center justify-center py-2 gap-2 px-2">
+                    <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider">
+                            Input Available
+                        </p>
+                    </div>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-xs border-emerald-400 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                        onClick={() => pullUpstreamData(id)}
+                    >
+                        <RefreshCw className="mr-2 h-3 w-3" />
+                        Load Input
+                    </Button>
+                </div>
+            );
+        }
+
+        if (isPendingUpdate) {
+            return (
+                <div className="flex flex-col items-center justify-center py-2 px-4 text-center gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        </span>
+                        <p className="text-[10px] font-medium text-red-600 uppercase tracking-wider">Pending Update</p>
+                    </div>
+                    <p className="text-xs text-red-500/80 leading-tight">Update preceding nodes to continue</p>
+                </div>
+            );
+        }
+
+        if (assets.length === 0) return <p className="text-sm text-gray-500">Ready to mine!</p>;
 
         if (isLoading) {
             return (
