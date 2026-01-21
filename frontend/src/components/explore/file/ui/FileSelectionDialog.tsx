@@ -3,9 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import FileShowcase from '~/components/explore/file/ui/FileShowcase';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 import { useFileDialogStore, useStoredFiles } from '~/stores/store';
+import { refocusPipeline } from '~/lib/explore/refocusPipeline';
 import { BaseExploreNodeAsset } from '~/types/explore/nodeData/baseNodeData';
 import { ExtendedFile } from '~/types/files.types';
-import { refocusPipeline } from '~/lib/explore/refocusPipeline';
 
 interface FileSelectionDialogProps {
     isOpen: boolean;
