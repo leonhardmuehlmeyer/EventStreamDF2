@@ -1,5 +1,5 @@
 use process_mining::OCEL;
-use crate::models::ocpt::{OCPTNode, OCPT, OCPTOperatorType};
+use crate::models::ocpt::{OCPTNode, OCPT, OCPTOperatorType, OCPTPretty};
 use crate::core::ocim::{
     common_data::{LocalData, GlobalData},
     basecase::basecase,
@@ -124,7 +124,7 @@ mod tests {
     use super::*;
     use crate::core::ocim::common_data::{GlobalData, LocalData};
     use crate::models::ocpt::{OCPTNode, OCPTOperatorType};
-    use process_mining::ocel::ocel_struct::OCEL;
+    use crate::models::ocel::OCEL;
     use std::path::Path;
 
     #[test]
