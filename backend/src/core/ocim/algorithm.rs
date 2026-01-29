@@ -1,5 +1,5 @@
-use process_mining::OCEL;
 use crate::models::ocpt::{OCPTNode, OCPT, OCPTOperatorType, OCPTPretty};
+use crate::models::ocel::OCEL;
 use crate::core::ocim::{
     common_data::{LocalData, GlobalData},
     basecase::basecase,
