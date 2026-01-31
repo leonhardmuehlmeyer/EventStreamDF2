@@ -5,15 +5,14 @@ import { Button } from '~/components/ui/button';
 import { useExploreFlowStore } from '~/stores/exploreStore';
 
 export const RefocusProgressPanel = () => {
-    const { nodes } = useExploreFlowStore();
+    const { nodes, refocusQueue } = useExploreFlowStore();
     const { setCenter } = useReactFlow();
 
     const staleState = useMemo(() => {
-        const pendingNodes = nodes.filter((n) => {
-            if (n.data.isStale && n.data.nodeCategory === 'miner') return true;
-
-            return false;
-        });
+        // Use the BFS-ordered refocus queue to maintain correct pipeline order
+        const pendingNodes = refocusQueue
+            .map((nodeId) => nodes.find((n) => n.id === nodeId))
+            .filter((n): n is (typeof nodes)[number] => n != null && n.data.isStale === true);
 
         if (pendingNodes.length === 0) return null;
 
@@ -23,7 +22,7 @@ export const RefocusProgressPanel = () => {
             count: pendingNodes.length,
             activeNode,
         };
-    }, [nodes]);
+    }, [nodes, refocusQueue]);
 
     if (!staleState) return null;
 

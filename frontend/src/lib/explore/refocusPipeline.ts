@@ -9,7 +9,7 @@ import { useExploreFlowStore } from '~/stores/exploreStore';
  * to step through and re-configure filters/miners one by one.
  */
 export const refocusPipeline = (rootNodeId: string) => {
-    const { edges, updateNodeData } = useExploreFlowStore.getState();
+    const { edges, nodes, updateNodeData, setRefocusQueue } = useExploreFlowStore.getState();
 
     // BFS to find all downstream nodes
     const visited = new Set<string>();
@@ -33,6 +33,13 @@ export const refocusPipeline = (rootNodeId: string) => {
             }
         });
     }
+
+    // Store BFS-ordered queue of downstream miner nodes for the progress panel
+    const minerQueue = downstreamNodes.filter((nodeId) => {
+        const node = nodes.find((n) => n.id === nodeId);
+        return node?.data.nodeCategory === 'miner';
+    });
+    setRefocusQueue(minerQueue);
 
     // Apply "Skeleton" state to all downstream nodes
     downstreamNodes.forEach((nodeId) => {
