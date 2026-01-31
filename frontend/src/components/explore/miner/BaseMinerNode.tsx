@@ -63,7 +63,18 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
             return;
         }
 
-        if (isStale && !hasResetStale.current) {
+        const hasOutputAsset = assets.some((asset) => asset.io === 'output');
+
+        // If there's already an output, the miner completed successfully - just clear isStale
+        // This handles the case where component remounts after navigation (ref resets but work is done)
+        if (hasOutputAsset) {
+            updateNodeData(id, () => ({
+                isStale: false,
+            }));
+            return;
+        }
+
+        if (!hasResetStale.current) {
             // 1. Trigger specific miner cleanup
             if (onReset) {
                 onReset();
@@ -75,12 +86,6 @@ const BaseMinerNode = memo<MinerNodeProps>((props) => {
             }));
 
             hasResetStale.current = true;
-        } else if (isStale && hasResetStale.current && assets.some((asset) => asset.io === 'output')) {
-            updateNodeData(id, () => {
-                return {
-                    isStale: false,
-                };
-            });
         }
     }, [isStale, id, onReset, updateNodeData, assets]);
 

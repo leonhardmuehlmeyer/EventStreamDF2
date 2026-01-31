@@ -14,8 +14,10 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
         });
     },
     onEdgesChange: (changes) => {
+        const hasStaleNodes = get().nodes.some((n) => n.data.isStale);
+        const filteredChanges = hasStaleNodes ? changes.filter((c) => c.type !== 'remove') : changes;
         set({
-            edges: applyEdgeChanges(changes, get().edges),
+            edges: applyEdgeChanges(filteredChanges, get().edges),
         });
     },
     onConnect: (connection) => {
@@ -80,6 +82,10 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
     },
     removeEdge: (edgeId) => {
         const state = get();
+
+        // Prevent edge deletion during refocus
+        if (state.nodes.some((n) => n.data.isStale)) return;
+
         const edge = state.edges.find((e) => e.id === edgeId);
 
         if (edge) {
