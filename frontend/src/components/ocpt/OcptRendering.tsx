@@ -4,8 +4,8 @@ import { Tree } from '@visx/hierarchy';
 import { HierarchyNode, HierarchyPointLink, HierarchyPointNode } from '@visx/hierarchy/lib/types';
 import { type ScaleOrdinal } from 'd3-scale';
 import { cloneDeep } from 'lodash-es';
-import OcptNode from '~/components/ocpt/nodes/OcptNode';
 import OcptLink from '~/components/ocpt/links/OcptLink';
+import OcptNode from '~/components/ocpt/nodes/OcptNode';
 import { useOriginalRenderedOcpt, useRenderedOcpt } from '~/stores/store';
 import { projectTreeOntoOT, updateTreeWithExtendedOperators } from '~/lib/ocpt/ocptProject';
 import { type FilteredObjectTypes, type TreeNode } from '~/types/ocpt/ocpt.types';
@@ -13,7 +13,6 @@ import { type FilteredObjectTypes, type TreeNode } from '~/types/ocpt/ocpt.types
 interface RenderTreeProps {
     rootNode: HierarchyNode<TreeNode>;
     filteredObjectTypes: FilteredObjectTypes;
-    objectTypes: string[];
     setHoveredNode: React.Dispatch<React.SetStateAction<HierarchyPointNode<TreeNode> | null>>;
     colorScale: ScaleOrdinal<string, string, never>;
     sizeWidth: number;
@@ -23,7 +22,6 @@ interface RenderTreeProps {
 export const RenderTree: React.FC<RenderTreeProps> = ({
     rootNode,
     filteredObjectTypes,
-    objectTypes,
     setHoveredNode,
     colorScale,
     sizeWidth,
@@ -48,7 +46,7 @@ export const RenderTree: React.FC<RenderTreeProps> = ({
             setOriginalRenderedTree(clonedTree);
             setRenderedOcpt(clonedTree);
         }
-    }, [renderedTree, originalRenderedTree]);
+    }, [renderedTree, originalRenderedTree, setOriginalRenderedOcpt, setRenderedOcpt]);
 
     // Handle filter changes and tree modifications
     useEffect(() => {
@@ -70,7 +68,7 @@ export const RenderTree: React.FC<RenderTreeProps> = ({
             setRenderedOcpt(newTree);
             prevRenderedTreeRef.current = newTree;
         }
-    }, [filteredObjectTypes, originalRenderedTree]);
+    }, [filteredObjectTypes, originalRenderedTree, setRenderedOcpt]);
 
     // Update links when tree structure changes
     useEffect(() => {
@@ -82,7 +80,7 @@ export const RenderTree: React.FC<RenderTreeProps> = ({
     return (
         <Tree
             root={rootNode}
-            separation={(a, b) => {
+            separation={(a) => {
                 return 2 + a.depth * 0.7;
             }}
             size={[sizeWidth, sizeHeight]}

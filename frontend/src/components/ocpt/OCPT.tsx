@@ -4,13 +4,17 @@ import { hierarchy } from '@visx/hierarchy';
 import { HierarchyNode, HierarchyPointNode } from '@visx/hierarchy/lib/types';
 import { ParentSize } from '@visx/responsive';
 import { Zoom } from '@visx/zoom';
+import type { ProvidedZoom, TransformMatrix } from '@visx/zoom/lib/types';
 import { ScaleOrdinal } from 'd3';
-import { SIDEBAR_WIDTH } from '~/components/ui/sidebar';
 import { RenderTree } from '~/components/ocpt/OcptRendering';
 import NodeTooltip from '~/components/ocpt/ui/NodeTooltip';
 import ZoomButtons from '~/components/ocpt/ui/ZoomButtons';
 import { VisualizationNode } from '~/types/explore/nodes';
 import { type TreeNode } from '~/types/ocpt/ocpt.types';
+
+// Cast needed due to @visx/zoom + @types/react@18 incompatibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TypedZoom = Zoom as any; // We need to do this as there is some issue with the React version and visx
 
 export type OCPTProps = {
     width?: number;
@@ -18,7 +22,6 @@ export type OCPTProps = {
     margin?: { top: number; right: number; bottom: number; left: number };
     treeData: TreeNode | null;
     colorScale: ScaleOrdinal<string, string, never>;
-    objectTypes: string[];
     node: VisualizationNode;
 };
 
@@ -35,7 +38,6 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
     margin = defaultMargin,
     treeData,
     colorScale,
-    objectTypes,
     node,
 }) => {
     const [hoveredNode, setHoveredNode] = useState<HierarchyPointNode<TreeNode> | null>(null);
@@ -43,44 +45,42 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
     const viewState = node.data.viewState;
     const filteredObjectTypes = viewState?.filteredObjectTypes || [];
 
-        useEffect(() => {
-            const copyTreeData = JSON.parse(JSON.stringify(treeData));
-            if (!copyTreeData) return;
-    
-            setTree(hierarchy(copyTreeData, (d) => (d!.isExpanded ? null : d!.children)));
-        }, [treeData]);
-    
-        if (width === 0 || height === 0) return null;
-    
-        const scale = 0.8;
-        // innerWidth calculation can use the responsive width
-        const innerWidth = width - margin.left - margin.right;
-        const innerHeight = height - margin.top - margin.bottom;
-    
-        // Center of the content (relative to the top-left of the SVG, before zoom)
-        const centerX = margin.left + innerWidth / 2;
-        const centerY = margin.top + innerHeight / 2;
-    
-        // We want the center of the tree to align with the center of the SCREEN (viewport) horizontally.
-        // translateX = ScreenCenter - ContentCenter_scaled
-        const translateX = window.innerWidth / 2 - centerX * scale;
-        
-        // For vertical alignment, we stick to the container center to avoid overlapping with top navigation.
-        const translateY = height / 2 - centerY * scale;
-    
-        const initialTransform = {
-            scaleX: scale,
-            scaleY: scale,
-            translateX: translateX,
-            translateY: translateY,
-            skewX: 0,
-            skewY: 0,
-        };
-    
-        let sizeWidth: number;    let sizeHeight: number;
+    useEffect(() => {
+        const copyTreeData = JSON.parse(JSON.stringify(treeData));
+        if (!copyTreeData) return;
 
-    sizeWidth = innerWidth;
-    sizeHeight = innerHeight;
+        setTree(hierarchy(copyTreeData, (d) => (d!.isExpanded ? null : d!.children)));
+    }, [treeData]);
+
+    if (width === 0 || height === 0) return null;
+
+    const scale = 0.8;
+    // innerWidth calculation can use the responsive width
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    // Center of the content (relative to the top-left of the SVG, before zoom)
+    const centerX = margin.left + innerWidth / 2;
+    const centerY = margin.top + innerHeight / 2;
+
+    // We want the center of the tree to align with the center of the SCREEN (viewport) horizontally.
+    // translateX = ScreenCenter - ContentCenter_scaled
+    const translateX = window.innerWidth / 2 - centerX * scale;
+
+    // For vertical alignment, we stick to the container center to avoid overlapping with top navigation.
+    const translateY = height / 2 - centerY * scale;
+
+    const initialTransform = {
+        scaleX: scale,
+        scaleY: scale,
+        translateX: translateX,
+        translateY: translateY,
+        skewX: 0,
+        skewY: 0,
+    };
+
+    const sizeWidth = innerWidth;
+    const sizeHeight = innerHeight;
 
     if (!treeData) {
         return <div>Loading...</div>;
@@ -89,7 +89,7 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
     return (
         tree && (
             <div className="h-full w-full">
-                <Zoom<SVGSVGElement>
+                <TypedZoom
                     width={width}
                     height={height}
                     scaleXMin={1 / 2}
@@ -98,7 +98,9 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
                     scaleYMax={4}
                     initialTransformMatrix={initialTransform}
                 >
-                    {(zoom) => (
+                    {(
+                        zoom: ProvidedZoom<SVGSVGElement> & { isDragging: boolean; transformMatrix: TransformMatrix }
+                    ) => (
                         <div className="relative w-full h-full">
                             <svg
                                 width={width}
@@ -113,7 +115,6 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
                                     <Group top={margin.top} left={margin.left}>
                                         <RenderTree
                                             rootNode={tree}
-                                            objectTypes={objectTypes}
                                             filteredObjectTypes={filteredObjectTypes}
                                             setHoveredNode={setHoveredNode}
                                             colorScale={colorScale}
@@ -137,7 +138,7 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
                             />
                         </div>
                     )}
-                </Zoom>
+                </TypedZoom>
             </div>
         )
     );
