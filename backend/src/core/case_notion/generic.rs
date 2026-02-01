@@ -1,6 +1,6 @@
 use crate::models::case_notion::GenericCaseNotion;
 use process_mining::OCEL;
-use process_mining::core::event_data::object_centric::{OCELEvent, OCELObject, OCELType};
+use crate::models::ocel::{OCELEvent, OCELObject, OCELType};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub fn generic_case_notion(

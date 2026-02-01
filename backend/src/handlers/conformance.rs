@@ -3,26 +3,17 @@ use serde_json::json;
 use tokio::fs as tokio_fs;
 
 use process_mining::conformance::object_centric::object_centric_language_abstraction::{
-    compute_fitness_precision, OCLanguageAbstraction,
-};
-use process_mining::core::process_models::object_centric::ocpt::{
-    OCPT as ProcessMiningOCPT, OCPTLeaf as ProcessMiningOCPTLeaf,
-    OCPTLeafLabel as ProcessMiningOCPTLeafLabel, OCPTNode as ProcessMiningOCPTNode,
-    OCPTOperator as ProcessMiningOCPTOperator, OCPTOperatorType as ProcessMiningOCPTOperatorType,
+    OCLanguageAbstraction, compute_fitness_precision,
 };
 use crate::models::ocel::{IndexLinkedOCEL, OCEL};
 
 // OCPT backend + (optionally) FE type & converter if needed
 use crate::core::struct_converters::ocpt_frontend_backend::frontend_to_backend;
-use crate::models::ocpt::{
-    OCPT as BackendOCPT, OCPTLeaf as BackendOCPTLeaf, OCPTLeafLabel as BackendOCPTLeafLabel,
-    OCPTNode as BackendOCPTNode, OCPTOperator as BackendOCPTOperator,
-    OCPTOperatorType as BackendOCPTOperatorType, OcptFE as FrontendOcpt,
-};
+use crate::models::ocpt::{OCPT as BackendOCPT, OcptFE as FrontendOcpt};
 
 /// Helper: Load an OCPT from disk, accepting either FE or BE JSON.
 /// Always returns the **backend** OCPT.
-async fn load_backend_ocpt(path: &str) -> Result<ProcessMiningOCPT, String> {
+async fn load_backend_ocpt(path: &str) -> Result<BackendOCPT, String> {
     let content = tokio_fs::read_to_string(path)
         .await
         .map_err(|e| format!("read {}: {e}", path))?;
@@ -39,63 +30,7 @@ async fn load_backend_ocpt(path: &str) -> Result<ProcessMiningOCPT, String> {
             .map_err(|e| format!("frontend->backend OCPT conversion failed at {}: {e}", path))?
     };
 
-    Ok(to_process_mining_ocpt(backend_ocpt))
-}
-
-fn to_process_mining_ocpt(ocpt: BackendOCPT) -> ProcessMiningOCPT {
-    ProcessMiningOCPT {
-        root: to_process_mining_node(ocpt.root),
-    }
-}
-
-fn to_process_mining_node(node: BackendOCPTNode) -> ProcessMiningOCPTNode {
-    match node {
-        BackendOCPTNode::Operator(op) => {
-            ProcessMiningOCPTNode::Operator(to_process_mining_operator(op))
-        }
-        BackendOCPTNode::Leaf(leaf) => ProcessMiningOCPTNode::Leaf(to_process_mining_leaf(leaf)),
-    }
-}
-
-fn to_process_mining_operator(op: BackendOCPTOperator) -> ProcessMiningOCPTOperator {
-    ProcessMiningOCPTOperator {
-        uuid: op.uuid,
-        operator_type: to_process_mining_operator_type(op.operator_type),
-        children: op
-            .children
-            .into_iter()
-            .map(to_process_mining_node)
-            .collect(),
-    }
-}
-
-fn to_process_mining_operator_type(
-    operator_type: BackendOCPTOperatorType,
-) -> ProcessMiningOCPTOperatorType {
-    match operator_type {
-        BackendOCPTOperatorType::Sequence => ProcessMiningOCPTOperatorType::Sequence,
-        BackendOCPTOperatorType::ExclusiveChoice => ProcessMiningOCPTOperatorType::ExclusiveChoice,
-        BackendOCPTOperatorType::Concurrency => ProcessMiningOCPTOperatorType::Concurrency,
-        BackendOCPTOperatorType::Loop(count) => ProcessMiningOCPTOperatorType::Loop(count),
-    }
-}
-
-fn to_process_mining_leaf(leaf: BackendOCPTLeaf) -> ProcessMiningOCPTLeaf {
-    ProcessMiningOCPTLeaf {
-        uuid: leaf.uuid,
-        activity_label: to_process_mining_leaf_label(leaf.activity_label),
-        related_ob_types: leaf.related_ob_types,
-        divergent_ob_types: leaf.divergent_ob_types,
-        convergent_ob_types: leaf.convergent_ob_types,
-        deficient_ob_types: leaf.deficient_ob_types,
-    }
-}
-
-fn to_process_mining_leaf_label(label: BackendOCPTLeafLabel) -> ProcessMiningOCPTLeafLabel {
-    match label {
-        BackendOCPTLeafLabel::Activity(label) => ProcessMiningOCPTLeafLabel::Activity(label),
-        BackendOCPTLeafLabel::Tau => ProcessMiningOCPTLeafLabel::Tau,
-    }
+    Ok(backend_ocpt)
 }
 
 /// GET /v1/conformance/ocpt/{ocpt_id}/ocel/{ocel_id}"

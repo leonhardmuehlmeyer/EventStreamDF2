@@ -605,7 +605,7 @@ pub fn is_convergent_locel(
     let mut object_index_to_event_indices = FxHashSet::default();
 
     for &&(ev_index, ob_index) in ev_ob_type_e2o_relations {
-        if locel.get_ob(ob_index).object_type.eq(ob_type) {
+        if locel.get_full_ob(ob_index).object_type.eq(ob_type) {
             if object_index_to_event_indices.contains(&ev_index) {
                 return true;
             }
@@ -644,7 +644,7 @@ pub fn is_divergent_locel(
                     locel
                         .get_e2o_set(ev_index)
                         .iter()
-                        .filter(|&ob_index| !locel.get_ob(ob_index).object_type.eq(ob_type))
+                        .filter(|&ob_index| !locel.get_full_ob(ob_index).object_type.eq(ob_type))
                         .collect::<FxHashSet<&ObjectIndex>>()
                 })
                 .collect::<Vec<_>>();

@@ -1,7 +1,7 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use process_mining::OCEL;
 use crate::models::dfg::OCDirectlyFollowsGraph;
-pub use process_mining::core::event_data::object_centric::linked_ocel::index_linked_ocel::IndexLinkedOCEL;
+pub use crate::models::ocel::IndexLinkedOCEL;
 use itertools::Itertools;
 use crate::models::ocel::OCELUtils;
 

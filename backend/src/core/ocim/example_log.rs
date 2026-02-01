@@ -1,8 +1,6 @@
 //file to reconstruct the small ocim example 
 use chrono::{DateTime, Duration, FixedOffset, NaiveDate, TimeZone};
-use process_mining::core::event_data::object_centric::{
-    OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType,
-};
+use crate::models::ocel::{OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType};
 use serde_json;
 use std::collections::BTreeSet;
 use std::fs;

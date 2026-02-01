@@ -1,4 +1,4 @@
-use process_mining::core::event_data::object_centric::OCELType;
+use crate::models::ocel::OCELType;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]

@@ -306,7 +306,7 @@ mod tests {
     use crate::core::ocim::algorithm::ocim_init;
     use crate::models::ocpt::{OCPTLeafLabel, OCPTOperatorType, OCPTNode};
     use chrono::Utc;
-    use process_mining::core::event_data::object_centric::{
+    use crate::models::ocel::{
         OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType,
     };
     use std::path::Path;
