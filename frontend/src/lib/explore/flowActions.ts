@@ -25,6 +25,12 @@ export const handleConnect = (connection: Connection) => {
         const propagatedAssets: BaseExploreNodeAsset[] = (sourceNode.data.assets || [])
             .filter((asset) => asset.io === 'output')
             .flatMap((asset) => {
+                // Assets arriving via the conformance handle are inputs for
+                // conformance checking and should not be propagated downstream.
+                if (connection.targetHandle === 'conformanceTarget') {
+                    return [{ ...asset, io: 'input' } as BaseExploreNodeAsset];
+                }
+
                 // If the target is a File Node, it acts as a pass-through/source.
                 // We strictly set it as an OUTPUT asset so it can be chained immediately.
                 if (isFileNode(targetNode)) {

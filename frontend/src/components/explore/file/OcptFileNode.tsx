@@ -22,23 +22,19 @@ const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
     const [fileId, setFileId] = useState<null | string>(null);
     const { data } = useGetOcpt(fileId, true);
     const navigate = useNavigate();
-    const { updateNodeData, edges, getNode } = useExploreFlowStore();
+    const { updateNodeData } = useExploreFlowStore();
     const { id, data: nodeData } = props;
     const { processedData, assets, conformanceData } = nodeData;
-    const viewState = nodeData.viewState || {
-        filteredObjectTypes: [],
-        colorScale: { domain: [], range: [] },
-    };
+    const viewState = useMemo(
+        () => nodeData.viewState || { filteredObjectTypes: [], colorScale: { domain: [], range: [] } },
+        [nodeData.viewState]
+    );
 
-    // Find incoming OCEL file ID from connected edges
+    // The OCEL file arrives as an input asset via the conformance handle
     const ocelFileId = useMemo(() => {
-        const incomingEdge = edges.find((e) => e.target === id);
-        if (!incomingEdge) return null;
-        const sourceNode = getNode(incomingEdge.source);
-        if (!sourceNode || sourceNode.data.nodeType !== 'ocelFileNode') return null;
-        const sourceAssets = sourceNode.data.assets;
-        return sourceAssets.length === 1 ? sourceAssets[0].id : null;
-    }, [edges, id, getNode]);
+        const ocelAsset = assets.find((a) => a.io === 'input' && a.type === 'ocelFile');
+        return ocelAsset?.id ?? null;
+    }, [assets]);
 
     const { data: conformanceResult, isLoading: isConformanceLoading } = useGetConformance(fileId, ocelFileId);
 
@@ -176,7 +172,12 @@ const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
                         </DropdownMenu>
                     </div>
                     <div className="relative mt-2 border-t pt-2">
-                        <Handle id="conformanceTarget" type="target" position={Position.Left} style={{ left: '-0.75rem' }} />
+                        <Handle
+                            id="conformanceTarget"
+                            type="target"
+                            position={Position.Left}
+                            style={{ left: '-0.75rem' }}
+                        />
                         <p className="text-xs font-semibold text-gray-500 mb-2">Conformance</p>
                         {!ocelFileId ? (
                             <p className="text-xs text-muted-foreground italic">Optional: Waiting for OCEL input</p>
