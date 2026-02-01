@@ -7,7 +7,11 @@ export const isTwoFileNodes = (connection: Connection, allNodes: Node[]) => {
     const sourceType = sourceNode?.type?.toLowerCase();
     const targetType = targetNode?.type?.toLowerCase();
 
-    if (sourceType?.includes('file') && targetType?.includes('file')) return true;
+    if (sourceType?.includes('file') && targetType?.includes('file')) {
+        // Allow OCEL → OCPT connections for conformance checking
+        if (sourceType?.includes('ocel') && targetType?.includes('ocpt')) return false;
+        return true;
+    }
     return false;
 };
 

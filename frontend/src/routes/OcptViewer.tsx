@@ -3,7 +3,6 @@ import { scaleOrdinal } from '@visx/scale';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { SidebarProvider } from '~/components/ui/sidebar';
 import BreadcrumbNav from '~/components/BreadcrumbNav';
-// import Flow from '~/components/flow/Flow';
 import OCPT from '~/components/ocpt/OCPT';
 import OcptSidebar from '~/components/ocpt/OcptSidebar';
 import { useExploreFlowStore } from '~/stores/exploreStore';
@@ -78,6 +77,7 @@ const OcptViewer: React.FC = () => {
                                 viewState: { ...viewState, filteredObjectTypes: newFilteredObjectTypes },
                             });
                         }}
+                        conformanceData={nodeData?.conformanceData}
                     />
                 ) : (
                     <div>Can not load sidebar. No nodeId found.</div>

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
     getAdvancedCN,
     getCaseNotions,
+    getConformance,
     getConnectedComponentsCN,
     getHistogram,
     getLogGraphs,
@@ -91,6 +92,15 @@ export const useMineOcpt = (nodeId: string, fileId: string | null, algorithm: st
         queryKey: ['mineOcpt', nodeId, fileId, algorithm],
         queryFn: () => mineOcpt(fileId!, algorithm),
         enabled: Boolean(fileId) && shouldFetch,
+        refetchOnWindowFocus: false,
+    });
+};
+
+export const useGetConformance = (ocptFileId: string | null, ocelFileId: string | null) => {
+    return useQuery({
+        queryKey: ['getConformance', ocptFileId, ocelFileId],
+        queryFn: () => getConformance(ocptFileId!, ocelFileId!),
+        enabled: Boolean(ocptFileId) && Boolean(ocelFileId),
         refetchOnWindowFocus: false,
     });
 };
