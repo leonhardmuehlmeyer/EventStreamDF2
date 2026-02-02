@@ -34,12 +34,7 @@ const nextEdgeMode = (mode: EdgeMode): EdgeMode => {
     }
 };
 
-const GraphPage: React.FC<GraphPageProps> = ({
-    fileId,
-    caseNotionGraph,
-    editable = false,
-    onGenericPayloadChange,
-}) => {
+const GraphPage: React.FC<GraphPageProps> = ({ fileId, caseNotionGraph, editable = false, onGenericPayloadChange }) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const svgRef = useRef<SVGSVGElement | null>(null);
 
@@ -48,7 +43,6 @@ const GraphPage: React.FC<GraphPageProps> = ({
 
     const [localGraph, setLocalGraph] = useState<any | null>(null);
     const [startingObjects, setStartingObjects] = useState<string[]>([]);
-
 
     useEffect(() => {
         if (!editable || !localGraph) return;
@@ -60,8 +54,6 @@ const GraphPage: React.FC<GraphPageProps> = ({
 
         const e2o_relations: any[] = [];
         const o2o_relations: any[] = [];
-
-        
 
         localGraph.links.forEach((l: any) => {
             if (l.edgeMode === 'none') return;
@@ -77,13 +69,12 @@ const GraphPage: React.FC<GraphPageProps> = ({
         onGenericPayloadChange?.({ start_types, e2o_relations, o2o_relations });
     }, [localGraph, startingObjects, editable]);
 
-
     useEffect(() => {
         if (!data) return;
         if (editable && localGraph) return;
-console.log('API data1:', data.arcs);
+        console.log('API data1:', data.arcs);
         const nodes: any[] = [];
-        const links: any[] = [];
+        // const links: any[] = [];
         data.event_types.forEach((et: string) =>
             nodes.push({
                 id: et,
@@ -99,46 +90,35 @@ console.log('API data1:', data.arcs);
                 deselected: caseNotionGraph?.deselected_object_types?.includes(ot) ?? false,
             })
         );
-    console.log('data');
-        console.log(data);
-        
+
+        const deselectedLinks: any[] = [];
+        const selectedLinks: any[] = [];
+
         data.arcs.forEach((a: any) => {
             const isDeselected =
                 caseNotionGraph?.deselected_arcs?.some(
                     (da) => da.source_type === a.source_type && da.target_type === a.target_type
                 ) ?? false;
 
-           
+            const edgeMode: EdgeMode = isDeselected ? 'none' : editable ? 'both' : 'forward';
 
-            const edgeMode: EdgeMode = isDeselected
-    ? 'none'  
-    : editable
-    ? 'both'
-    : 'forward';
-
-
-            links.push({
+            const link = {
                 source: a.source_type,
                 target: a.target_type,
                 edgeMode,
                 originalEdgeMode: edgeMode,
-                deselected: edgeMode === 'none',
-            });
+                deselected: isDeselected,
+            };
+
+            if (isDeselected) {
+                deselectedLinks.push(link);
+            } else {
+                selectedLinks.push(link);
+            }
         });
-
+        const links = [...deselectedLinks, ...selectedLinks];
         setLocalGraph({ nodes, links });
-         console.log('links');
-
-            console.log(links);
-
-
-
-console.log('casenotion graph');
-console.log(caseNotionGraph);
-
-
     }, [data, caseNotionGraph, editable]);
-
 
     useEffect(() => {
         if (!localGraph || !svgRef.current || !containerRef.current) return;
@@ -151,19 +131,21 @@ console.log(caseNotionGraph);
 
         const g = svg.attr('viewBox', `0 0 ${width} ${height}`).append('g');
 
-         svg.call(
-      d3.zoom<SVGSVGElement, unknown>().on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      })
-    );
-
-
-       
-
+        svg.call(
+            d3.zoom<SVGSVGElement, unknown>().on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            })
+        );
 
         const simulation = d3
             .forceSimulation(localGraph.nodes)
-            .force('link', d3.forceLink(localGraph.links).id((d: any) => d.id).distance(160))
+            .force(
+                'link',
+                d3
+                    .forceLink(localGraph.links)
+                    .id((d: any) => d.id)
+                    .distance(160)
+            )
             .force('charge', d3.forceManyBody().strength(-350))
             .force('center', d3.forceCenter(width / 2, height / 2))
             .force('collision', d3.forceCollide().radius(45));
@@ -187,46 +169,38 @@ console.log(caseNotionGraph);
             });
 
         const updatedLinkStyles = () => {
-            link
-                .attr('stroke', (d: any) => (d.edgeMode === 'none' ? '#C0C0C0' : 'black'))
+            console.log('debug link');
+            console.log(link);
+
+            link.attr('stroke', (d: any) => (d.edgeMode === 'none' ? '#C0C0C0' : 'black'))
                 .attr('stroke-opacity', (d: any) => (d.edgeMode === 'none' ? 0.35 : 0.85))
                 .attr('marker-end', (d: any) =>
-                    d.edgeMode === 'forward' || d.edgeMode === 'both'
-                        ? 'url(#arrow)'
-                        : null
+                    d.edgeMode === 'forward' || d.edgeMode === 'both' ? 'url(#arrow)' : null
                 )
                 .attr('marker-start', (d: any) =>
-                    d.edgeMode === 'backward' || d.edgeMode === 'both'
-                        ? 'url(#arrow)'
-                        : null
+                    d.edgeMode === 'backward' || d.edgeMode === 'both' ? 'url(#arrow)' : null
                 );
         };
 
         updatedLinkStyles();
- const defs = svg.append('defs');
+        const defs = svg.append('defs');
 
         defs.append('marker')
-    .attr('id', 'arrow')
-    .attr('viewBox', '0 -3 6 6')
-    .attr('refX', 22)          
-    .attr('refY', 0)
-    .attr('markerWidth', 4)   
-    .attr('markerHeight', 4)
-    .attr('orient', 'auto-start-reverse')
-    .append('path')
-    .attr('d', 'M0,-3L6,0L0,3') 
-    .attr('fill', 'black');
-
+            .attr('id', 'arrow')
+            .attr('viewBox', '0 -3 6 6')
+            .attr('refX', 22)
+            .attr('refY', 0)
+            .attr('markerWidth', 4)
+            .attr('markerHeight', 4)
+            .attr('orient', 'auto-start-reverse')
+            .append('path')
+            .attr('d', 'M0,-3L6,0L0,3')
+            .attr('fill', 'black');
 
         const getFill = (d: any) =>
-            d.deselected
-                ? '#C0C0C0'
-                : d.group === 'object'
-                ? getColorForObject(fileId, d.id)
-                : 'white';
+            d.deselected ? '#C0C0C0' : d.group === 'object' ? getColorForObject(fileId, d.id) : 'white';
 
-        const getStroke = (d: any) =>
-            d.deselected ? '#333' : d.group === 'event' ? 'black' : '#fff';
+        const getStroke = (d: any) => (d.deselected ? '#333' : d.group === 'event' ? 'black' : '#fff');
 
         const getStrokeWidth = (d: any) => (d.group === 'event' ? 2.5 : 1.5);
 
@@ -246,8 +220,6 @@ console.log(caseNotionGraph);
             updatedLinkStyles();
         };
 
-
-
         const node = g
             .append('g')
             .selectAll('circle')
@@ -256,55 +228,47 @@ console.log(caseNotionGraph);
             .append('circle')
             .attr('r', 12)
             .attr('fill', (d: any) =>
-                d.deselected
-                    ? '#C0C0C0'
-                    : d.group === 'object'
-                    ? getColorForObject(fileId, d.id)
-                    : 'white'
+                d.deselected ? '#C0C0C0' : d.group === 'object' ? getColorForObject(fileId, d.id) : 'white'
             )
             .attr('stroke', 'black')
             .attr('stroke-width', 2)
             .call(
-  d3
-    .drag<SVGCircleElement, any>()
-    .on('start', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-    })
-    .on('drag', (event, d) => {
-        d.fx = event.x;
-        d.fy = event.y;
-    })
-    .on('end', (event, d) => {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-    })
-)
-                    .on('click', function (event, d: any) {
+                d3
+                    .drag<SVGCircleElement, any>()
+                    .on('start', (event, d) => {
+                        if (!event.active) simulation.alphaTarget(0.3).restart();
+                        d.fx = d.x;
+                        d.fy = d.y;
+                    })
+                    .on('drag', (event, d) => {
+                        d.fx = event.x;
+                        d.fy = event.y;
+                    })
+                    .on('end', (event, d) => {
+                        if (!event.active) simulation.alphaTarget(0);
+                        d.fx = null;
+                        d.fy = null;
+                    })
+            )
+            .on('click', function (event, d: any) {
                 if (!editable) return;
 
                 const self = d3.select(this);
 
                 if (d.group === 'object' && event.shiftKey) {
                     const isStarting = startingObjects.includes(d.id);
-                    setStartingObjects((prev) =>
-                        isStarting ? prev.filter((x) => x !== d.id) : [...prev, d.id]
-                    );
+                    setStartingObjects((prev) => (isStarting ? prev.filter((x) => x !== d.id) : [...prev, d.id]));
 
-                    self
-                        .attr('stroke', isStarting ? getStroke(d) : 'black')
-                        .attr('stroke-width', isStarting ? getStrokeWidth(d) : 6);
+                    self.attr('stroke', isStarting ? getStroke(d) : 'black').attr(
+                        'stroke-width',
+                        isStarting ? getStrokeWidth(d) : 6
+                    );
                 } else {
                     d.deselected = !d.deselected;
                     self.attr('fill', getFill(d)).attr('stroke-opacity', d.deselected ? 0.35 : 1);
                     updateConnectedLinks(d);
                 }
             });
-
-
-
 
         const label = g
             .append('g')
@@ -318,8 +282,7 @@ console.log(caseNotionGraph);
             .attr('text-anchor', 'middle');
 
         simulation.on('tick', () => {
-            link
-                .attr('x1', (d: any) => d.source.x)
+            link.attr('x1', (d: any) => d.source.x)
                 .attr('y1', (d: any) => d.source.y)
                 .attr('x2', (d: any) => d.target.x)
                 .attr('y2', (d: any) => d.target.y);
@@ -329,89 +292,59 @@ console.log(caseNotionGraph);
         });
     }, [localGraph, editable, startingObjects, fileId, getColorForObject]);
 
-    if (isLoading)
-    return (
-      <div className="flex w-full h-full justify-center items-center">
-        Loading graph...
-      </div>
-    );
+    if (isLoading) return <div className="flex w-full h-full justify-center items-center">Loading graph...</div>;
 
-  if (error)
-    return (
-      <div className="flex w-full h-full justify-center items-center text-red-500">
-        Failed to load graph
-      </div>
-    );
+    if (error)
+        return <div className="flex w-full h-full justify-center items-center text-red-500">Failed to load graph</div>;
 
-  return (
-    <div className="w-full h-full p-2">
-      {editable && (
-        <div className="mt-2 flex flex-col gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="font-semibold text-foreground/90">
-              Starting Object Types:
-            </span>
-            {startingObjects.length > 0 ? (
-              <div className="flex gap-1">
-                {startingObjects.map((obj) => (
-                  <span
-                    key={obj}
-                    className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground"
-                  >
-                    <LegendRect size={8} fill={getDeterministicColor(obj)} />
-                    {obj}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <span className="italic text-muted-foreground/50">
-                None selected
-              </span>
+    return (
+        <div className="w-full h-full p-2">
+            {editable && (
+                <div className="mt-2 flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground/90">Starting Object Types:</span>
+                        {startingObjects.length > 0 ? (
+                            <div className="flex gap-1">
+                                {startingObjects.map((obj) => (
+                                    <span
+                                        key={obj}
+                                        className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-0.5 text-xs text-foreground"
+                                    >
+                                        <LegendRect size={8} fill={getDeterministicColor(obj)} />
+                                        {obj}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <span className="italic text-muted-foreground/50">None selected</span>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-4 border-t border-border/50 pt-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                            <MousePointer className="h-3 w-3" />
+                            <span>Select/Deselect</span>
+                        </div>
+                        <div className="h-3 w-[1px] bg-border" />
+                        <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1">
+                                <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                                    Shift
+                                </kbd>
+                                +
+                                <MousePointer className="h-3 w-3" />
+                            </span>
+                            <span>Mark as start object</span>
+                        </div>
+                    </div>
+                </div>
             )}
-          </div>
 
-          <div className="flex items-center gap-4 border-t border-border/50 pt-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <MousePointer className="h-3 w-3" />
-              <span>Select/Deselect</span>
+            <div ref={containerRef} className="w-full h-full">
+                <svg ref={svgRef} className="w-full h-full" />
             </div>
-            <div className="h-3 w-[1px] bg-border" />
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1">
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                  Shift
-                </kbd>
-                +
-                <MousePointer className="h-3 w-3" />
-              </span>
-              <span>Mark as start object</span>
-            </div>
-          </div>
         </div>
-      )}
-
-      <div ref={containerRef} className="w-full h-full">
-        <svg ref={svgRef} className="w-full h-full" />
-      </div>
-    </div>
-  );
+    );
 };
 
 export default GraphPage;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
