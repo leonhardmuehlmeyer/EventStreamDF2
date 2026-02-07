@@ -16,13 +16,13 @@ export const isTwoFileNodes = (connection: Connection | Edge, sourceNode: Explor
 };
 
 /**
- * Ensures that only OCEL file nodes can connect to the conformance target handle.
- * The conformance handle is used by the OcptFileNode to receive OCEL data
- * for computing fitness and precision metrics.
+ * Ensures that only OCEL or OCPT file nodes can connect to the conformance target handle.
+ * The conformance handle is used by the OcptFileNode to receive either OCEL data
+ * (OCPT-vs-OCEL conformance) or another OCPT (OCPT-vs-OCPT conformance).
  */
 export const isInvalidConformanceTarget = (connection: Connection | Edge, sourceNode: ExploreNode): boolean => {
     if (connection.targetHandle !== 'conformanceTarget') return false;
-    return sourceNode.data.nodeType !== 'ocelFileNode';
+    return sourceNode.data.nodeType !== 'ocelFileNode' && sourceNode.data.nodeType !== 'ocptFileNode';
 };
 
 /**

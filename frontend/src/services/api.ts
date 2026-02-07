@@ -91,11 +91,19 @@ export const deleteOcel = async (fileId: string) => {
     return response.data;
 };
 
-export const getConformance = async (
+export const getConformanceOcptOcel = async (
     ocptFileId: string,
     ocelFileId: string
 ): Promise<{ fitness: number; precision: number }> => {
     const response = await api.get(`/v1/conformance/ocpt/${ocptFileId}/ocel/${ocelFileId}`);
+    return response.data;
+};
+
+export const getConformanceOcptOcpt = async (
+    ocptFileId1: string,
+    ocptFileId2: string
+): Promise<{ fitness: number; precision: number }> => {
+    const response = await api.get(`/v1/conformance/ocpt_1/${ocptFileId1}/ocpt_2/${ocptFileId2}`);
     return response.data;
 };
 

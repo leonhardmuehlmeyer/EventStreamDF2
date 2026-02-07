@@ -15,7 +15,7 @@ import {
 } from '~/components/ui/dropdown-menu';
 import BaseFileNode from '~/components/explore/file/BaseFileNode';
 import { useExploreFlowStore } from '~/stores/exploreStore';
-import { useGetConformance, useGetOcpt } from '~/services/queries';
+import { useGetConformanceOcptOcel, useGetConformanceOcptOcpt, useGetOcpt } from '~/services/queries';
 import { FileNode } from '~/types/explore/nodes';
 
 const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
@@ -30,13 +30,32 @@ const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
         [nodeData.viewState]
     );
 
-    // The OCEL file arrives as an input asset via the conformance handle
+    // The conformance input can be either an OCEL file or another OCPT file
     const ocelFileId = useMemo(() => {
         const ocelAsset = assets.find((a) => a.io === 'input' && a.type === 'ocelFile');
         return ocelAsset?.id ?? null;
     }, [assets]);
 
-    const { data: conformanceResult, isLoading: isConformanceLoading } = useGetConformance(fileId, ocelFileId);
+    const ocptInputFileId = useMemo(() => {
+        const ocptAsset = assets.find(
+            (a) => a.io === 'input' && (a.type === 'ocptFile' || a.type === 'ocptAsset')
+        );
+        return ocptAsset?.id ?? null;
+    }, [assets]);
+
+    const conformanceMode = ocelFileId ? 'ocpt-ocel' : ocptInputFileId ? 'ocpt-ocpt' : null;
+
+    const { data: conformanceOcelResult, isLoading: isOcelLoading } = useGetConformanceOcptOcel(
+        conformanceMode === 'ocpt-ocel' ? fileId : null,
+        conformanceMode === 'ocpt-ocel' ? ocelFileId : null
+    );
+    const { data: conformanceOcptResult, isLoading: isOcptLoading } = useGetConformanceOcptOcpt(
+        conformanceMode === 'ocpt-ocpt' ? fileId : null,
+        conformanceMode === 'ocpt-ocpt' ? ocptInputFileId : null
+    );
+
+    const conformanceResult = conformanceOcelResult ?? conformanceOcptResult;
+    const isConformanceLoading = isOcelLoading || isOcptLoading;
 
     // Store conformance result in node data for access from OcptViewer/Sidebar
     useEffect(() => {
@@ -45,12 +64,12 @@ const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
         }
     }, [conformanceResult, id, updateNodeData]);
 
-    // Clear conformance data when OCEL disconnected
+    // Clear conformance data when conformance input disconnected
     useEffect(() => {
-        if (!ocelFileId && conformanceData) {
+        if (!conformanceMode && conformanceData) {
             updateNodeData(id, { conformanceData: undefined });
         }
-    }, [ocelFileId, conformanceData, id, updateNodeData]);
+    }, [conformanceMode, conformanceData, id, updateNodeData]);
 
     useEffect(() => {
         if (data && viewState.colorScale.domain.length === 0) {
@@ -69,7 +88,10 @@ const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
         navigate(`/data/pipeline/explore/ocpt/${id}${filter ? `?filter=${filter}` : ''}`);
     };
 
-    const ocptAsset = useMemo(() => assets.find((a) => a.type === 'ocptFile' || a.type === 'ocptAsset'), [assets]);
+    const ocptAsset = useMemo(
+        () => assets.find((a) => a.io === 'output' && (a.type === 'ocptFile' || a.type === 'ocptAsset')),
+        [assets]
+    );
 
     useMemo(() => {
         setFileId(ocptAsset?.id ?? null);
@@ -179,8 +201,8 @@ const OcptFileNode = memo<NodeProps<FileNode>>((props) => {
                             style={{ left: '-0.75rem' }}
                         />
                         <p className="text-xs font-semibold text-gray-500 mb-2">Conformance</p>
-                        {!ocelFileId ? (
-                            <p className="text-xs text-muted-foreground italic">Optional: Waiting for OCEL input</p>
+                        {!conformanceMode ? (
+                            <p className="text-xs text-muted-foreground italic">Optional: Connect OCEL or OCPT</p>
                         ) : isConformanceLoading ? (
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Loader2 className="h-3 w-3 animate-spin" />
