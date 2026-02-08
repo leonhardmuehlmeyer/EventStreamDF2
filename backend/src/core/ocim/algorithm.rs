@@ -1,22 +1,22 @@
-use crate::models::ocpt::{OCPTNode, OCPT, OCPTOperatorType};
-use crate::models::ocel::OCEL;
 use crate::core::ocim::{
-    common_data::{LocalData, GlobalData},
     basecase::basecase,
-    sequence_cut_detection::find_cut_sequence,
-    loop_cut_detection::find_cut_loop,
-    log_splitting::split_log,
-    exclusive_cut_detection::find_cut_exclusive,
+    common_data::{GlobalData, LocalData},
     concurrent_cut_detection::find_cut_concurrent,
+    exclusive_cut_detection::find_cut_exclusive,
     fallthrough_detection::detect_fallthrough_fitness_polynomial,
+    log_splitting::split_log,
+    loop_cut_detection::find_cut_loop,
+    sequence_cut_detection::find_cut_sequence,
     tau_cases::detect_tau_cases,
 };
+use crate::models::ocel::OCEL;
+use crate::models::ocpt::{OCPT, OCPTNode, OCPTOperatorType};
 use uuid::Uuid;
 
 pub fn ocim_init(logs: &Vec<OCEL>) -> OCPT {
     let local_data = LocalData::new(logs.clone(), None);
     let global_data = GlobalData::new(logs.clone());
-    
+
     let root_node: OCPTNode = ocim_recursive(local_data, &global_data);
     OCPT::new(root_node)
 }
@@ -59,7 +59,7 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
         // A cut was found, now split the log and recurse.
 
         let sublogs = split_log(&local_data, partition, &operator, global_data);
-        
+
         //DEBUG
         match operator {
             OCPTOperatorType::Loop(_) => {
@@ -78,7 +78,6 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
             operator_node.add_child(subtree);
         }
         return operator_node;
-
     } else {
         // If no strict cut found, try fallthrough detection.
         let (fallthrough_partition, fallthrough_operator, _score) =
@@ -104,13 +103,16 @@ fn ocim_recursive(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
     }
 }
 
-pub fn find_strict_cut(local_data: &LocalData, global_data: &GlobalData) -> Option<(Vec<Vec<String>>, OCPTOperatorType)> {
-    for check in [find_cut_sequence,
-        find_cut_exclusive, 
-        find_cut_concurrent, 
+pub fn find_strict_cut(
+    local_data: &LocalData,
+    global_data: &GlobalData,
+) -> Option<(Vec<Vec<String>>, OCPTOperatorType)> {
+    for check in [
+        find_cut_sequence,
+        find_cut_exclusive,
+        find_cut_concurrent,
         find_cut_loop,
-        ] 
-    {
+    ] {
         if let Some((partition, operator)) = check(local_data, global_data) {
             // global_data.quality_info["cuts"].append((partition, operator))
             return Some((partition, operator));
@@ -123,8 +125,8 @@ pub fn find_strict_cut(local_data: &LocalData, global_data: &GlobalData) -> Opti
 mod tests {
     use super::*;
     use crate::core::ocim::common_data::{GlobalData, LocalData};
-    use crate::models::ocpt::{OCPTNode, OCPTOperatorType, OCPTPretty};
     use crate::models::ocel::OCEL;
+    use crate::models::ocpt::{OCPTNode, OCPTOperatorType, OCPTPretty};
     use std::path::Path;
 
     #[test]

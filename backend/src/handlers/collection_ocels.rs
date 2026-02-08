@@ -16,7 +16,10 @@ pub async fn get_collection_ocels(Path(file_id): Path<String>) -> impl IntoRespo
         Ok(content) => match serde_json::from_str::<Value>(&content) {
             Ok(value) => (StatusCode::OK, Json(value)).into_response(),
             Err(err) => {
-                eprintln!("Failed to parse stored case OCEL collection {}: {}", path, err);
+                eprintln!(
+                    "Failed to parse stored case OCEL collection {}: {}",
+                    path, err
+                );
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "Failed to parse stored case OCEL collection".to_string(),
@@ -25,7 +28,10 @@ pub async fn get_collection_ocels(Path(file_id): Path<String>) -> impl IntoRespo
             }
         },
         Err(err) => {
-            eprintln!("Failed to read stored case OCEL collection {}: {}", path, err);
+            eprintln!(
+                "Failed to read stored case OCEL collection {}: {}",
+                path, err
+            );
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Failed to read stored case OCEL collection".to_string(),

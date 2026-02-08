@@ -186,16 +186,25 @@ mod tests {
         let mut dfgs = FxHashMap::default();
         dfgs.insert(object_type.clone(), (edges, starts, ends));
 
-        let clos_set =
-            FxHashSet::from_iter(clos_pairs.into_iter().map(|(a, b)| (a.to_string(), b.to_string())));
+        let clos_set = FxHashSet::from_iter(
+            clos_pairs
+                .into_iter()
+                .map(|(a, b)| (a.to_string(), b.to_string())),
+        );
         let mut clos = FxHashMap::default();
         clos.insert(object_type.clone(), clos_set);
 
         let object_types = FxHashSet::from_iter(vec![object_type.clone()]);
 
         let mut related = FxHashMap::default();
-        related.insert("a".to_string(), FxHashSet::from_iter(vec![object_type.clone()]));
-        related.insert("b".to_string(), FxHashSet::from_iter(vec![object_type.clone()]));
+        related.insert(
+            "a".to_string(),
+            FxHashSet::from_iter(vec![object_type.clone()]),
+        );
+        related.insert(
+            "b".to_string(),
+            FxHashSet::from_iter(vec![object_type.clone()]),
+        );
 
         let local = LocalData {
             oc_log_list: Vec::<OCEL>::new(),
@@ -220,12 +229,7 @@ mod tests {
 
     #[test]
     fn loop_cut_valid_with_bi_directional_closure() {
-        let clos_pairs = vec![
-            ("a", "a"),
-            ("a", "b"),
-            ("b", "a"),
-            ("b", "b"),
-        ];
+        let clos_pairs = vec![("a", "a"), ("a", "b"), ("b", "a"), ("b", "b")];
         let (local, global) = make_synthetic_data(clos_pairs);
 
         let partition = vec![vec!["a".to_string()], vec!["b".to_string()]];
@@ -234,11 +238,7 @@ mod tests {
 
     #[test]
     fn loop_cut_invalid_when_closure_missing_reverse_edge() {
-        let clos_pairs = vec![
-            ("a", "a"),
-            ("a", "b"),
-            ("b", "b"),
-        ]; // missing (b,a) breaks Eq. 28
+        let clos_pairs = vec![("a", "a"), ("a", "b"), ("b", "b")]; // missing (b,a) breaks Eq. 28
         let (local, global) = make_synthetic_data(clos_pairs);
 
         let partition = vec![vec!["a".to_string()], vec!["b".to_string()]];

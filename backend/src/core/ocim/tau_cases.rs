@@ -2,8 +2,8 @@ use rustc_hash::FxHashSet;
 
 use crate::core::ocim::auxiliary_methods::get_non_divergent_types;
 use crate::core::ocim::common_data::{GlobalData, LocalData};
-use crate::models::ocpt::OCPTOperatorType;
 use crate::models::ocel::OCEL;
+use crate::models::ocpt::OCPTOperatorType;
 
 /// Detect TAU cases as described in the Python reference.
 /// Returns a partition (with a trailing empty part for tau) and operator when a tau case is detected.
@@ -19,8 +19,10 @@ pub fn detect_tau_cases(
             .cloned()
             .collect();
 
-        let missing_types: FxHashSet<String> = collect_types_for_objects(&global_data.oc_log_list, &missing_objects);
-        let present_types: FxHashSet<String> = collect_present_object_types(&local_data.oc_log_list);
+        let missing_types: FxHashSet<String> =
+            collect_types_for_objects(&global_data.oc_log_list, &missing_objects);
+        let present_types: FxHashSet<String> =
+            collect_present_object_types(&local_data.oc_log_list);
         let tau_types: Vec<String> = missing_types
             .into_iter()
             .filter(|ot| present_types.contains(ot))
@@ -30,7 +32,10 @@ pub fn detect_tau_cases(
         local_data.expected_objects = local_data.object_set.clone();
 
         if !tau_types.is_empty() {
-            return Some((vec![local_data.alphabet.clone(), Vec::new()], OCPTOperatorType::ExclusiveChoice));
+            return Some((
+                vec![local_data.alphabet.clone(), Vec::new()],
+                OCPTOperatorType::ExclusiveChoice,
+            ));
         }
     }
 
@@ -42,7 +47,9 @@ pub fn detect_tau_cases(
                     Some(c) => c,
                     None => return None,
                 };
-                if !clos.contains(&(a.clone(), b.clone())) || !clos.contains(&(b.clone(), a.clone())) {
+                if !clos.contains(&(a.clone(), b.clone()))
+                    || !clos.contains(&(b.clone(), a.clone()))
+                {
                     return None;
                 }
             }
@@ -85,10 +92,16 @@ pub fn detect_tau_cases(
         return None;
     }
 
-    Some((vec![local_data.alphabet.clone(), Vec::new()], OCPTOperatorType::Loop(None)))
+    Some((
+        vec![local_data.alphabet.clone(), Vec::new()],
+        OCPTOperatorType::Loop(None),
+    ))
 }
 
-fn collect_types_for_objects(logs: &Vec<OCEL>, object_ids: &FxHashSet<String>) -> FxHashSet<String> {
+fn collect_types_for_objects(
+    logs: &Vec<OCEL>,
+    object_ids: &FxHashSet<String>,
+) -> FxHashSet<String> {
     let mut types = FxHashSet::default();
     for log in logs {
         for obj in &log.objects {

@@ -11,12 +11,12 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use crate::core::struct_converters::utils::{
     VTy, epoch_fixed_utc, json_to_attr_value, merge_tys, parse_time_any, vty_to_attr_type,
 };
-use crate::models::ocel1::{Ocel1, Ocel1Event, Ocel1Object};
 use crate::models::ocel::OCEL;
 use crate::models::ocel::{
     OCELEvent, OCELEventAttribute, OCELObject, OCELObjectAttribute, OCELRelationship, OCELType,
     OCELTypeAttribute,
 };
+use crate::models::ocel1::{Ocel1, Ocel1Event, Ocel1Object};
 
 /// Parse an OCEL **1.0 JSON string** and return a normalized [`OCEL`] (v2).
 ///

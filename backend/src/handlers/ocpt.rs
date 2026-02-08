@@ -115,7 +115,7 @@ pub async fn post_ocpt(mut multipart: Multipart) -> Response {
     (StatusCode::OK, Json(resp)).into_response()
 }
 
-async fn ensure_temp_dir() -> std::io::Result<()> {
+pub(crate) async fn ensure_temp_dir() -> std::io::Result<()> {
     let dir = PathBuf::from("./temp");
     if !dir.exists() {
         fs::create_dir_all(&dir).await?;
@@ -123,8 +123,25 @@ async fn ensure_temp_dir() -> std::io::Result<()> {
     Ok(())
 }
 
-// Helper: read a backend OCPT from disk and convert to the FE shape.
-async fn read_ocpt_as_frontend(path: &str) -> Result<OcptFE, String> {
+pub(crate) async fn read_ocpt_as_backend(path: &str) -> Result<OCPT, String> {
+    let content = fs::read_to_string(path)
+        .await
+        .map_err(|e| format!("read {}: {e}", path))?;
+
+    // 1) Try backend first
+    if let Ok(be) = serde_json::from_str::<OCPT>(&content) {
+        return Ok(be);
+    }
+
+    // 2) Fallback FE -> BE
+    let fe: OcptFE =
+        serde_json::from_str(&content).map_err(|e| format!("parse OCPT {}: {e}", path))?;
+
+    frontend_to_backend(fe).map_err(|e| format!("convert frontend OCPT {}: {e}", path))
+}
+
+// Helper: read an OCPT from disk and return the FE shape.
+pub(crate) async fn read_ocpt_as_frontend(path: &str) -> Result<OcptFE, String> {
     let content = fs::read_to_string(path)
         .await
         .map_err(|e| format!("read {}: {e}", path))?;

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::models::ocpt::{IdentityRelation, OCPTLeafLabel, OCPTNode, OCPTOperator};
 
-use super::{check_relation, Relation};
+use super::{Relation, check_relation};
 
 fn collect_activities(node: &OCPTNode, out: &mut HashSet<String>) {
     match node {
@@ -128,7 +128,9 @@ mod tests {
     #[test]
     fn extend_order_management_ocpt_and_write_json() {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let input_path = manifest_dir.join("temp").join("ocpt_order_managment_df2.json");
+        let input_path = manifest_dir
+            .join("temp")
+            .join("ocpt_order_managment_df2.json");
         let raw = std::fs::read_to_string(&input_path)
             .expect("failed to read temp/ocpt_order_managment_df2.json");
         let ocpt: OCPT = serde_json::from_str(&raw)
@@ -137,8 +139,7 @@ mod tests {
         let ocel_path = manifest_dir
             .join("temp")
             .join("ocel_v2_126cd774-c16a-4d26-886a-6768add705c9.json");
-        let ocel_raw =
-            std::fs::read_to_string(&ocel_path).expect("failed to read ocel_v2_*.json");
+        let ocel_raw = std::fs::read_to_string(&ocel_path).expect("failed to read ocel_v2_*.json");
         let ocel: OCEL =
             serde_json::from_str(&ocel_raw).expect("failed to parse ocel_v2_*.json as OCEL");
         let ocels = vec![ocel];
@@ -160,13 +161,15 @@ mod tests {
         ];
 
         let extended_root = get_extended_ocpt(ocpt.root, &relations, Some(candidates));
-        let extended = OCPT { root: extended_root };
+        let extended = OCPT {
+            root: extended_root,
+        };
 
         let out_path = manifest_dir
             .join("temp")
             .join("ocpt_order_managment_df2_extended.json");
-        let json = serde_json::to_string_pretty(&extended)
-            .expect("failed to serialize extended OCPT");
+        let json =
+            serde_json::to_string_pretty(&extended).expect("failed to serialize extended OCPT");
         std::fs::write(&out_path, &json).expect("failed to write extended OCPT json");
 
         println!("{}", out_path.display());

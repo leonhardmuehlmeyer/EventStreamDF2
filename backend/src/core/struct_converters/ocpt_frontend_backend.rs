@@ -1,8 +1,9 @@
 //! Convert **[OcptFE]** to **[OCPT]** and viceversa.
 use crate::models::ocpt::{
     ActivityValue, HierarchyNode, IdentityRelation, IdentityRelationFE, IdentityRelationKind,
-    IdentityRelationKindFE, OCPT, OCPTLeaf, OCPTLeafLabel, OCPTNode, OCPTOperator, OCPTOperatorType,
-    ObjectTypeFE as FeObjectType, OcptFE, OperatorFE, OperatorValue, OperatorValueData,
+    IdentityRelationKindFE, OCPT, OCPTLeaf, OCPTLeafLabel, OCPTNode, OCPTOperator,
+    OCPTOperatorType, ObjectTypeFE as FeObjectType, OcptFE, OperatorFE, OperatorValue,
+    OperatorValueData,
 };
 use anyhow::{Result, anyhow};
 use std::collections::{HashMap, HashSet};
@@ -47,34 +48,32 @@ pub fn backend_to_frontend(ocpt: &OCPT) -> OcptFE {
 
 fn frontend_node_to_backend(node: &HierarchyNode) -> Result<OCPTNode> {
     match node {
-        HierarchyNode::Operator { value, children } => {
-            match value {
-                OperatorValue::Operator(op) => {
-                    let op_type = operator_fe_to_backend(&op.operator);
-                    let mut op_node = OCPTOperator::new(op_type);
-                    op_node.children = children
-                        .iter()
-                        .map(frontend_node_to_backend)
-                        .collect::<Result<Vec<_>>>()?;
-                    let mut node = OCPTNode::Operator(op_node);
+        HierarchyNode::Operator { value, children } => match value {
+            OperatorValue::Operator(op) => {
+                let op_type = operator_fe_to_backend(&op.operator);
+                let mut op_node = OCPTOperator::new(op_type);
+                op_node.children = children
+                    .iter()
+                    .map(frontend_node_to_backend)
+                    .collect::<Result<Vec<_>>>()?;
+                let mut node = OCPTNode::Operator(op_node);
 
-                    if let Some(identities) = &op.identity {
-                        node = wrap_with_identities(node, identities)?;
-                    }
+                if let Some(identities) = &op.identity {
+                    node = wrap_with_identities(node, identities)?;
+                }
 
-                    Ok(node)
-                }
-                OperatorValue::Legacy(value) => {
-                    let op_type = parse_operator(value)?;
-                    let mut op = OCPTOperator::new(op_type);
-                    op.children = children
-                        .iter()
-                        .map(frontend_node_to_backend)
-                        .collect::<Result<Vec<_>>>()?;
-                    Ok(OCPTNode::Operator(op))
-                }
+                Ok(node)
             }
-        }
+            OperatorValue::Legacy(value) => {
+                let op_type = parse_operator(value)?;
+                let mut op = OCPTOperator::new(op_type);
+                op.children = children
+                    .iter()
+                    .map(frontend_node_to_backend)
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(OCPTNode::Operator(op))
+            }
+        },
         HierarchyNode::Activity { value } => {
             let leaf = frontend_activity_to_leaf(value);
             Ok(OCPTNode::Leaf(leaf))
@@ -106,7 +105,7 @@ fn parse_operator(s: &str) -> Result<OCPTOperatorType> {
         "identity" => {
             return Err(anyhow!(
                 "Legacy identity operator requires identity data; use value.operator with identity list on the operator"
-            ))
+            ));
         }
         other => return Err(anyhow!("Unknown operator: {other}")),
     })
@@ -242,10 +241,7 @@ fn operator_fe_to_backend(op: &OperatorFE) -> OCPTOperatorType {
     }
 }
 
-fn wrap_with_identities(
-    mut node: OCPTNode,
-    identities: &[IdentityRelationFE],
-) -> Result<OCPTNode> {
+fn wrap_with_identities(mut node: OCPTNode, identities: &[IdentityRelationFE]) -> Result<OCPTNode> {
     // Identity list is ordered outermost -> innermost. Wrap in reverse.
     for rel in identities.iter().rev() {
         let rel_backend = IdentityRelation {
@@ -443,10 +439,7 @@ mod tests {
         let roundtrip = backend_to_frontend(&backend);
 
         match roundtrip.hierarchy {
-            HierarchyNode::Operator {
-                value,
-                children,
-            } => {
+            HierarchyNode::Operator { value, children } => {
                 match value {
                     OperatorValue::Operator(OperatorValueData { operator, identity }) => {
                         assert!(matches!(operator, OperatorFE::Sequence));

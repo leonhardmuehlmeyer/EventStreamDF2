@@ -21,7 +21,7 @@ use axum::{
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 use uuid::Uuid;
 
@@ -639,5 +639,9 @@ pub async fn get_case_ocel(Path(case_notion_file_id): Path<String>) -> impl Into
         Err(response) => return response.into_response(),
     };
 
-    (StatusCode::OK, Json(json!({ "case_ocels_file_id": case_ocels_file_id }))).into_response()
+    (
+        StatusCode::OK,
+        Json(json!({ "case_ocels_file_id": case_ocels_file_id })),
+    )
+        .into_response()
 }

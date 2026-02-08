@@ -35,10 +35,16 @@ fn check_exclusive_1(
             None => return true,
         };
 
-        let ab = dfg.get(&(a.to_string(), b.to_string())).copied().unwrap_or(0);
-        let ba = dfg.get(&(b.to_string(), a.to_string())).copied().unwrap_or(0);
-        let divergent_both = div_a.map_or(false, |d| d.contains(ot))
-            && div_b.map_or(false, |d| d.contains(ot));
+        let ab = dfg
+            .get(&(a.to_string(), b.to_string()))
+            .copied()
+            .unwrap_or(0);
+        let ba = dfg
+            .get(&(b.to_string(), a.to_string()))
+            .copied()
+            .unwrap_or(0);
+        let divergent_both =
+            div_a.map_or(false, |d| d.contains(ot)) && div_b.map_or(false, |d| d.contains(ot));
 
         if (ab > 0 || ba > 0) && !divergent_both {
             return true;
