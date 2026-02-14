@@ -13,7 +13,7 @@ interface OcptLinkProps {
 }
 
 const OcptLink: React.FC<OcptLinkProps> = ({ link, linkId }) => {
-    return <LinkLine key={`${linkId}`} data={link} strokeWidth="1" className={`stroke-gray-300`} />;
+    return <LinkLine key={`${linkId}`} data={link} strokeWidth="1" stroke="#d1d5db" />;
 };
 
 export default OcptLink;

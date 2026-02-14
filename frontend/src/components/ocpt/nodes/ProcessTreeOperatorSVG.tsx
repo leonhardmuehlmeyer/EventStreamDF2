@@ -15,7 +15,7 @@ const ProcessTreeOperatorSVG: React.FC<ProcessTreeOperatorSVGProps> = ({ path, w
             x={-width / 2}
             y={-height / 2}
             viewBox="0 0 15 15"
-            className="text-black"
+            color="black"
         >
             {path}
         </svg>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Group } from '@visx/group';
 import { HierarchyPointNode } from '@visx/hierarchy/lib/types';
 import { ScaleOrdinal } from 'd3';
-import LegendRect from '~/components/ocpt/ui/LegendRect';
+
 import * as Ocpt from '~/types/ocpt/ocpt.types';
 
 interface TextNodeProps {
@@ -78,26 +78,29 @@ const TextNode: React.FC<TextNodeProps> = ({
                 ref={textRef}
                 dy=".33em"
                 textAnchor="middle"
-                className={`text-black pointer-events-none`}
+                fill="black"
+                style={{ pointerEvents: 'none' }}
                 opacity={opacity}
             >
                 {textContent}
             </text>
-            {!isSilent && (
-                <foreignObject
-                    x={-nodeWidth / 2}
-                    y={-height / 2 + 20}
-                    width={nodeWidth}
-                    height={height - 20}
-                    className="flex flex-col items-center justify-center"
-                >
-                    <div className={`mt-4 flex justify-around w-full`}>
-                        {activity.ots.map((ot, index) => (
-                            <LegendRect key={index} fill={colorScale(ot.ot)} size={10} opacity={opacity} />
-                        ))}
-                    </div>
-                </foreignObject>
-            )}
+            {!isSilent && (() => {
+                const size = 10;
+                const gap = 4;
+                const count = activity.ots.length;
+                const startX = -(count * size + (count - 1) * gap) / 2;
+                return activity.ots.map((ot, index) => (
+                    <rect
+                        key={index}
+                        x={startX + index * (size + gap)}
+                        y={height / 2 - size - 4}
+                        width={size}
+                        height={size}
+                        fill={colorScale(ot.ot)}
+                        opacity={opacity}
+                    />
+                ));
+            })()}
         </Group>
     );
 };

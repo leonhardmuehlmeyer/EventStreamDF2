@@ -1,6 +1,6 @@
 import { Group } from '@visx/group';
 import { HierarchyPointNode } from '@visx/hierarchy/lib/types';
-import { Circle } from 'lucide-react';
+
 import ProcessTreeOperatorSVG from '~/components/ocpt/nodes/ProcessTreeOperatorSVG';
 import * as Ocpt from '~/types/ocpt/ocpt.types';
 
@@ -22,7 +22,7 @@ const ProcessTreeOperatorNode: React.FC<ProcessTreeNodeProps> = ({ height, width
                 y={-height / 2}
                 x={-width / 2}
                 fill="white"
-                className="stroke-black"
+                stroke="black"
                 strokeWidth={3}
                 rx={25}
                 ry={25}
@@ -113,7 +113,7 @@ const ProcessTreeOperatorNode: React.FC<ProcessTreeNodeProps> = ({ height, width
                         );
 
                     case 'skip':
-                        return <Circle size={30} x={-15} y={-15} className={`opacity-[${opacity}]`} />;
+                        return <circle r={15} fill="none" stroke="black" strokeWidth={2} opacity={opacity} />;
                 }
             })()}
         </Group>
