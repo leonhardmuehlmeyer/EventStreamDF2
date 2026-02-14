@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::models::ocpt::IdentityRelationKind;
 use super::Relation;
+use crate::models::ocpt::IdentityRelationKind;
 
 fn build_event_object_sets(relations: &[Relation]) -> HashMap<String, Vec<String>> {
     let mut event_to_objects: HashMap<String, Vec<String>> = HashMap::new();

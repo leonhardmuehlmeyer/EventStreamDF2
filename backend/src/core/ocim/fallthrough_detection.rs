@@ -231,12 +231,7 @@ pub fn detect_fallthrough_concurrent(
     if unique.len() <= 1 {
         if let Some(first) = local_data.alphabet.first() {
             part_one = vec![first.clone()];
-            part_two = local_data
-                .alphabet
-                .iter()
-                .skip(1)
-                .cloned()
-                .collect();
+            part_two = local_data.alphabet.iter().skip(1).cloned().collect();
         } else {
             return (-1.0, None, None);
         }
@@ -252,13 +247,20 @@ pub fn detect_fallthrough_concurrent(
         }
     }
 
-    if !is_concurrent_fallthrough_valid(local_data, global_data, &[part_one.clone(), part_two.clone()]) {
+    if !is_concurrent_fallthrough_valid(
+        local_data,
+        global_data,
+        &[part_one.clone(), part_two.clone()],
+    ) {
         return (-1.0, None, None);
     }
 
-    let (score, _) =
-        evaluate_concurrent_fallthrough(local_data, global_data, &part_one, &part_two);
-    (score, Some(vec![part_one, part_two]), Some(OCPTOperatorType::Concurrency))
+    let (score, _) = evaluate_concurrent_fallthrough(local_data, global_data, &part_one, &part_two);
+    (
+        score,
+        Some(vec![part_one, part_two]),
+        Some(OCPTOperatorType::Concurrency),
+    )
 }
 
 fn detect_distance_exclusive(
@@ -287,11 +289,7 @@ fn detect_distance_exclusive(
         }
     }
 
-    if total == 0.0 {
-        1.0
-    } else {
-        correct / total
-    }
+    if total == 0.0 { 1.0 } else { correct / total }
 }
 
 pub fn detect_fallthrough_exclusive(
@@ -349,16 +347,16 @@ pub fn detect_fallthrough_exclusive(
         }
     }
 
-    let all_parts: FxHashSet<_> = part_one
-        .iter()
-        .chain(part_two.iter())
-        .cloned()
-        .collect();
+    let all_parts: FxHashSet<_> = part_one.iter().chain(part_two.iter()).cloned().collect();
     if all_parts != alphabet.iter().cloned().collect() {
         return (-1.0, None, None);
     }
 
-    if !is_exclusive_fallthrough_valid(local_data, global_data, &[part_one.clone(), part_two.clone()]) {
+    if !is_exclusive_fallthrough_valid(
+        local_data,
+        global_data,
+        &[part_one.clone(), part_two.clone()],
+    ) {
         return (-1.0, None, None);
     }
 
@@ -399,7 +397,8 @@ pub fn detect_fallthrough_sequence(
         }
     }
 
-    let partition = connected_components_by_predicate(&local_data.alphabet, |i, j| initial_adj[i][j]);
+    let partition =
+        connected_components_by_predicate(&local_data.alphabet, |i, j| initial_adj[i][j]);
     if partition.len() == 1 {
         return (-1.0, None, None);
     }
@@ -461,7 +460,11 @@ pub fn detect_fallthrough_sequence(
             .flat_map(|p| p.iter().cloned())
             .collect();
 
-        if !is_sequence_fallthrough_valid(local_data, global_data, &[part_one.clone(), part_two.clone()]) {
+        if !is_sequence_fallthrough_valid(
+            local_data,
+            global_data,
+            &[part_one.clone(), part_two.clone()],
+        ) {
             continue;
         }
 
@@ -492,7 +495,12 @@ pub fn detect_fallthrough_sequence(
     }
 }
 
-fn detect_loop_pair(local_data: &LocalData, global_data: &GlobalData, a: &String, b: &String) -> bool {
+fn detect_loop_pair(
+    local_data: &LocalData,
+    global_data: &GlobalData,
+    a: &String,
+    b: &String,
+) -> bool {
     let div_a = match global_data.divergence.get(a) {
         Some(set) => set,
         None => return false,
@@ -504,10 +512,10 @@ fn detect_loop_pair(local_data: &LocalData, global_data: &GlobalData, a: &String
 
     for ot in div_a.intersection(div_b) {
         if let Some((dfg, starts, ends)) = local_data.dfgs.get(ot) {
-            let a_start_end = starts.get(a).copied().unwrap_or(0) > 0
-                || ends.get(a).copied().unwrap_or(0) > 0;
-            let b_start_end = starts.get(b).copied().unwrap_or(0) > 0
-                || ends.get(b).copied().unwrap_or(0) > 0;
+            let a_start_end =
+                starts.get(a).copied().unwrap_or(0) > 0 || ends.get(a).copied().unwrap_or(0) > 0;
+            let b_start_end =
+                starts.get(b).copied().unwrap_or(0) > 0 || ends.get(b).copied().unwrap_or(0) > 0;
             if a_start_end && b_start_end {
                 return true;
             }
@@ -515,7 +523,8 @@ fn detect_loop_pair(local_data: &LocalData, global_data: &GlobalData, a: &String
             let edge_ab = dfg.get(&(a.clone(), b.clone())).copied().unwrap_or(0) > 0;
             let b_start = starts.get(b).copied().unwrap_or(0) > 0;
             let a_end = ends.get(a).copied().unwrap_or(0) > 0;
-            let divergent = get_divergent_types(a, b, &local_data.alphabet, global_data).contains(ot);
+            let divergent =
+                get_divergent_types(a, b, &local_data.alphabet, global_data).contains(ot);
 
             if edge_ab && !a_end && !b_start && !divergent {
                 return true;
@@ -624,16 +633,17 @@ pub fn detect_fallthrough_loop(
         }
     }
 
-    let all_parts: FxHashSet<_> = partition
-        .iter()
-        .flat_map(|p| p.iter().cloned())
-        .collect();
+    let all_parts: FxHashSet<_> = partition.iter().flat_map(|p| p.iter().cloned()).collect();
     if all_parts != local_data.alphabet.iter().cloned().collect() {
         return (-1.0, None, None);
     }
 
     if let Some(partition) = best_partition {
-        (best_score, Some(partition), Some(OCPTOperatorType::Loop(None)))
+        (
+            best_score,
+            Some(partition),
+            Some(OCPTOperatorType::Loop(None)),
+        )
     } else {
         (-1.0, None, None)
     }

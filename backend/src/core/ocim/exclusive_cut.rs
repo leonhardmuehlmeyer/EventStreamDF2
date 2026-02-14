@@ -50,10 +50,7 @@ pub fn is_exclusive_cut_valid(
                 None => return false,
             };
             for ot in related {
-                if projected_end
-                    .get(ot)
-                    .map_or(false, |ends| ends.contains(a))
-                {
+                if projected_end.get(ot).map_or(false, |ends| ends.contains(a)) {
                     let end_count = local_data
                         .dfgs
                         .get(ot)

@@ -2,10 +2,13 @@ use axum::{Json, extract::Path as AxumPath, http::StatusCode, response::IntoResp
 use serde_json::json;
 use tokio::fs as tokio_fs;
 
+use crate::models::ocel::{IndexLinkedOCEL, OCEL};
+use process_mining::conformance::object_centric::footprint_based_ocpt::{
+    compute_footprint_conformance, compute_footprint_conformance_ocpt_vs_ocpt,
+};
 use process_mining::conformance::object_centric::object_centric_language_abstraction::{
     OCLanguageAbstraction, compute_fitness_precision,
 };
-use crate::models::ocel::{IndexLinkedOCEL, OCEL};
 
 // OCPT backend + (optionally) FE type & converter if needed
 use crate::core::struct_converters::ocpt_frontend_backend::frontend_to_backend;
@@ -88,10 +91,37 @@ pub async fn get_conformance_ocpt_ocel(
     let model_abs = OCLanguageAbstraction::create_from_oc_process_tree(&ocpt_backend);
     let log_abs = OCLanguageAbstraction::create_from_ocel(&locel);
     let (fitness, precision) = compute_fitness_precision(&log_abs, &model_abs);
+    let footprint = compute_footprint_conformance(&locel, &ocpt_backend);
+
+    println!(
+        "[conformance ocpt_ocel] ocpt_id={} ocel_id={} fitness={} precision={} footprint={{control_fitness={} control_precision={} multiplicity_fitness={} multiplicity_precision={} identity_fitness={} identity_precision={} overall_fitness={} overall_precision={}}}",
+        ocpt_id,
+        ocel_id,
+        fitness,
+        precision,
+        footprint.control_fitness,
+        footprint.control_precision,
+        footprint.multiplicity_fitness,
+        footprint.multiplicity_precision,
+        footprint.identity_fitness,
+        footprint.identity_precision,
+        footprint.overall_fitness,
+        footprint.overall_precision
+    );
 
     Json(json!({
         "fitness": fitness,
-        "precision": precision
+        "precision": precision,
+        "footprint": {
+            "control_fitness": footprint.control_fitness,
+            "control_precision": footprint.control_precision,
+            "multiplicity_fitness": footprint.multiplicity_fitness,
+            "multiplicity_precision": footprint.multiplicity_precision,
+            "identity_fitness": footprint.identity_fitness,
+            "identity_precision": footprint.identity_precision,
+            "overall_fitness": footprint.overall_fitness,
+            "overall_precision": footprint.overall_precision
+        }
     }))
     .into_response()
 }
@@ -116,10 +146,37 @@ pub async fn get_conformance_ocpt_ocpt(
     let a_abs = OCLanguageAbstraction::create_from_oc_process_tree(&ocpt_1);
     let b_abs = OCLanguageAbstraction::create_from_oc_process_tree(&ocpt_2);
     let (fitness, precision) = compute_fitness_precision(&a_abs, &b_abs);
+    let footprint = compute_footprint_conformance_ocpt_vs_ocpt(&ocpt_1, &ocpt_2);
+
+    println!(
+        "[conformance ocpt_ocpt] ocpt_id_1={} ocpt_id_2={} fitness={} precision={} footprint={{control_fitness={} control_precision={} multiplicity_fitness={} multiplicity_precision={} identity_fitness={} identity_precision={} overall_fitness={} overall_precision={}}}",
+        ocpt_id_1,
+        ocpt_id_2,
+        fitness,
+        precision,
+        footprint.control_fitness,
+        footprint.control_precision,
+        footprint.multiplicity_fitness,
+        footprint.multiplicity_precision,
+        footprint.identity_fitness,
+        footprint.identity_precision,
+        footprint.overall_fitness,
+        footprint.overall_precision
+    );
 
     Json(json!({
         "fitness": fitness,
-        "precision": precision
+        "precision": precision,
+        "footprint": {
+            "control_fitness": footprint.control_fitness,
+            "control_precision": footprint.control_precision,
+            "multiplicity_fitness": footprint.multiplicity_fitness,
+            "multiplicity_precision": footprint.multiplicity_precision,
+            "identity_fitness": footprint.identity_fitness,
+            "identity_precision": footprint.identity_precision,
+            "overall_fitness": footprint.overall_fitness,
+            "overall_precision": footprint.overall_precision
+        }
     }))
     .into_response()
 }

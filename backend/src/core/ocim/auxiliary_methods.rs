@@ -55,13 +55,11 @@ pub fn get_non_divergent_types(
     context_activities: &[String],
     global_data: &GlobalData,
 ) -> FxHashSet<String> {
-    let shared_related: FxHashSet<String> = match (
-        global_data.related.get(a),
-        global_data.related.get(b),
-    ) {
-        (Some(rel_a), Some(rel_b)) => rel_a.intersection(rel_b).cloned().collect(),
-        _ => FxHashSet::default(),
-    };
+    let shared_related: FxHashSet<String> =
+        match (global_data.related.get(a), global_data.related.get(b)) {
+            (Some(rel_a), Some(rel_b)) => rel_a.intersection(rel_b).cloned().collect(),
+            _ => FxHashSet::default(),
+        };
 
     shared_related
         .into_iter()
@@ -91,13 +89,11 @@ pub fn get_divergent_types(
     context_activities: &[String],
     global_data: &GlobalData,
 ) -> FxHashSet<String> {
-    let shared_related: FxHashSet<String> = match (
-        global_data.related.get(a),
-        global_data.related.get(b),
-    ) {
-        (Some(rel_a), Some(rel_b)) => rel_a.intersection(rel_b).cloned().collect(),
-        _ => FxHashSet::default(),
-    };
+    let shared_related: FxHashSet<String> =
+        match (global_data.related.get(a), global_data.related.get(b)) {
+            (Some(rel_a), Some(rel_b)) => rel_a.intersection(rel_b).cloned().collect(),
+            _ => FxHashSet::default(),
+        };
 
     shared_related
         .into_iter()

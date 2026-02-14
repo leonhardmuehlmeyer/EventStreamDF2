@@ -141,20 +141,29 @@ pub fn split_log(
                     continue;
                 }
                 // 1. Build lookups
-                let object_id_to_type: FxHashMap<String, String> =
-                    log.objects.iter().map(|o| (o.id.clone(), o.object_type.clone())).collect();
+                let object_id_to_type: FxHashMap<String, String> = log
+                    .objects
+                    .iter()
+                    .map(|o| (o.id.clone(), o.object_type.clone()))
+                    .collect();
 
                 let mut object_id_to_events: FxHashMap<String, Vec<&_>> = FxHashMap::default();
                 for event in &log.events {
                     for rel in &event.relationships {
-                        object_id_to_events.entry(rel.object_id.clone()).or_default().push(event);
+                        object_id_to_events
+                            .entry(rel.object_id.clone())
+                            .or_default()
+                            .push(event);
                     }
                 }
-                
+
                 let event_ids: Vec<&str> = log.events.iter().map(|e| e.id.as_str()).collect();
-                let event_id_to_idx: FxHashMap<&str, usize> =
-                    event_ids.iter().enumerate().map(|(i, &id)| (id, i)).collect();
-                
+                let event_id_to_idx: FxHashMap<&str, usize> = event_ids
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &id)| (id, i))
+                    .collect();
+
                 let mut uf = UnionFind::new(event_ids.len());
 
                 for (oid, otype) in &object_id_to_type {
@@ -172,7 +181,8 @@ pub fn split_log(
                                 continue;
                             }
 
-                            if let Some((_, start_counts, end_counts)) = local_data.dfgs.get(otype) {
+                            if let Some((_, start_counts, end_counts)) = local_data.dfgs.get(otype)
+                            {
                                 if start_counts.get(&e2.event_type).is_some()
                                     && end_counts.get(&e1.event_type).is_some()
                                 {
@@ -189,7 +199,7 @@ pub fn split_log(
                             if divergent_types.contains(otype) {
                                 continue;
                             }
-                            
+
                             let idx1 = event_id_to_idx[e1.id.as_str()];
                             let idx2 = event_id_to_idx[e2.id.as_str()];
                             uf.union(idx1, idx2);
@@ -215,25 +225,55 @@ pub fn split_log(
                     .iter()
                     .map(|event_id_group| {
                         let mut new_log = log.clone();
-                        new_log.events.retain(|e| event_id_group.contains(&e.id.as_str()));
-                        
-                        let used_event_types: FxHashSet<String> = new_log.events.iter().map(|e| e.event_type.clone()).collect();
-                        new_log.event_types.retain(|et| used_event_types.contains(&et.name));
-                        let used_object_ids: FxHashSet<String> = new_log.events.iter().flat_map(|event| &event.relationships).map(|rel| rel.object_id.clone()).collect();
-                        new_log.objects.retain(|obj| used_object_ids.contains(&obj.id));
-                        let used_object_types: FxHashSet<String> = new_log.objects.iter().map(|o| o.object_type.clone()).collect();
-                        new_log.object_types.retain(|ot| used_object_types.contains(&ot.name));
+                        new_log
+                            .events
+                            .retain(|e| event_id_group.contains(&e.id.as_str()));
+
+                        let used_event_types: FxHashSet<String> = new_log
+                            .events
+                            .iter()
+                            .map(|e| e.event_type.clone())
+                            .collect();
+                        new_log
+                            .event_types
+                            .retain(|et| used_event_types.contains(&et.name));
+                        let used_object_ids: FxHashSet<String> = new_log
+                            .events
+                            .iter()
+                            .flat_map(|event| &event.relationships)
+                            .map(|rel| rel.object_id.clone())
+                            .collect();
+                        new_log
+                            .objects
+                            .retain(|obj| used_object_ids.contains(&obj.id));
+                        let used_object_types: FxHashSet<String> = new_log
+                            .objects
+                            .iter()
+                            .map(|o| o.object_type.clone())
+                            .collect();
+                        new_log
+                            .object_types
+                            .retain(|ot| used_object_types.contains(&ot.name));
                         new_log
                     })
                     .collect();
-                
+
                 for sublog in sublogs {
-                    if sublog.events.is_empty() { continue; }
-                    let unique_activities: FxHashSet<String> = sublog.event_types.iter().map(|et| et.name.clone()).collect();
+                    if sublog.events.is_empty() {
+                        continue;
+                    }
+                    let unique_activities: FxHashSet<String> = sublog
+                        .event_types
+                        .iter()
+                        .map(|et| et.name.clone())
+                        .collect();
                     for i in 0..partition.len() {
-                        if partition[i].iter().any(|p_act| unique_activities.contains(p_act)) {
+                        if partition[i]
+                            .iter()
+                            .any(|p_act| unique_activities.contains(p_act))
+                        {
                             result_sublogs[i].push(sublog.clone());
-                            break; 
+                            break;
                         }
                     }
                 }
@@ -243,10 +283,7 @@ pub fn split_log(
                 .into_iter()
                 .filter(|log_list| !log_list.is_empty())
                 .map(|oc_log_list| {
-                    LocalData::new(
-                        oc_log_list,
-                        Some(local_data.expected_objects.clone()),
-                    )
+                    LocalData::new(oc_log_list, Some(local_data.expected_objects.clone()))
                 })
                 .collect();
         }

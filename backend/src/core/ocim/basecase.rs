@@ -43,10 +43,7 @@ pub fn basecase(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
         .collect();
 
     // Step 2 & 3: Identify and filter `loops`
-    let divergence_for_activity = global_data
-        .divergence
-        .get(activity)
-        .unwrap_or(&empty_set);
+    let divergence_for_activity = global_data.divergence.get(activity).unwrap_or(&empty_set);
 
     let loops: FxHashSet<String> = related_ots
         .iter()
@@ -113,9 +110,9 @@ pub fn basecase(local_data: LocalData, global_data: &GlobalData) -> OCPTNode {
 mod tests {
     use super::*;
     use crate::core::ocim::algorithm::ocim_init;
+    use crate::models::ocel::{OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType};
     use crate::models::ocpt::{OCPTLeafLabel, OCPTOperatorType};
     use chrono::Utc;
-    use crate::models::ocel::{OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType};
     use std::thread;
     use std::time::Duration;
 
@@ -152,8 +149,14 @@ mod tests {
             }],
         };
         ocel.events.push(event1);
-        ocel.event_types.push(OCELType { name: "a".to_string(), attributes: Vec::new() });
-        ocel.object_types.push(OCELType { name: "ot1".to_string(), attributes: Vec::new() });
+        ocel.event_types.push(OCELType {
+            name: "a".to_string(),
+            attributes: Vec::new(),
+        });
+        ocel.object_types.push(OCELType {
+            name: "ot1".to_string(),
+            attributes: Vec::new(),
+        });
 
         // 2. Act: Run the OCIM algorithm
         let ocpt = ocim_init(&vec![ocel.clone()]);
@@ -193,7 +196,7 @@ mod tests {
                 qualifier: "rel".to_string(),
             }],
         };
-        
+
         thread::sleep(Duration::from_millis(10)); // Ensure different timestamps
 
         let event2 = OCELEvent {
@@ -208,8 +211,14 @@ mod tests {
         };
         ocel.events.push(event1);
         ocel.events.push(event2);
-        ocel.event_types.push(OCELType { name: "a".to_string(), attributes: Vec::new() });
-        ocel.object_types.push(OCELType { name: "ot1".to_string(), attributes: Vec::new() });
+        ocel.event_types.push(OCELType {
+            name: "a".to_string(),
+            attributes: Vec::new(),
+        });
+        ocel.object_types.push(OCELType {
+            name: "ot1".to_string(),
+            attributes: Vec::new(),
+        });
 
         // 2. Act: Run the OCIM algorithm
         let ocpt = ocim_init(&vec![ocel.clone()]);
@@ -244,8 +253,14 @@ mod tests {
         };
         ocel.events.push(event1);
         ocel.events.push(event2);
-        ocel.event_types.push(OCELType { name: "a".to_string(), attributes: Vec::new() });
-        ocel.event_types.push(OCELType { name: "b".to_string(), attributes: Vec::new() });
+        ocel.event_types.push(OCELType {
+            name: "a".to_string(),
+            attributes: Vec::new(),
+        });
+        ocel.event_types.push(OCELType {
+            name: "b".to_string(),
+            attributes: Vec::new(),
+        });
 
         // 2. Act: Run the OCIM algorithm
         let ocpt = ocim_init(&vec![ocel.clone()]);

@@ -3,7 +3,7 @@ use crate::traits::import_export::ImportableFromPath;
 use async_trait::async_trait;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
-use serde_json::{from_reader, from_value, Value};
+use serde_json::{Value, from_reader, from_value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, ErrorKind};
@@ -23,7 +23,10 @@ impl ImportableFromPath for OCELCollection {
 
         let file = File::open(&path).map_err(|err| {
             if err.kind() == ErrorKind::NotFound {
-                (StatusCode::NOT_FOUND, format!("File not found: {}", path_str))
+                (
+                    StatusCode::NOT_FOUND,
+                    format!("File not found: {}", path_str),
+                )
             } else {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
@@ -41,21 +44,28 @@ impl ImportableFromPath for OCELCollection {
         })?;
 
         if let Value::Object(mut map) = json_value {
-            let case_ocels_value = map
-                .remove("case_ocels")
-                .ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing 'case_ocels' field".to_string()))?;
+            let case_ocels_value = map.remove("case_ocels").ok_or_else(|| {
+                (
+                    StatusCode::BAD_REQUEST,
+                    "Missing 'case_ocels' field".to_string(),
+                )
+            })?;
 
-            let ocels: Vec<OCEL> =
-                from_value(case_ocels_value).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to deserialize OCELs: {}", e)))?;
+            let ocels: Vec<OCEL> = from_value(case_ocels_value).map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Failed to deserialize OCELs: {}", e),
+                )
+            })?;
 
             let attributes: HashMap<String, Value> = map.into_iter().collect();
 
-            Ok(OCELCollection {
-                ocels,
-                attributes,
-            })
+            Ok(OCELCollection { ocels, attributes })
         } else {
-            Err((StatusCode::BAD_REQUEST, "Expected a JSON object".to_string()))
+            Err((
+                StatusCode::BAD_REQUEST,
+                "Expected a JSON object".to_string(),
+            ))
         }
     }
 }
