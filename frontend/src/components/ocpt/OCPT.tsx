@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Group } from '@visx/group';
 import { hierarchy } from '@visx/hierarchy';
 import { HierarchyNode, HierarchyPointNode } from '@visx/hierarchy/lib/types';
@@ -23,6 +23,8 @@ export type OCPTProps = {
     treeData: Node | null;
     colorScale: ScaleOrdinal<string, string, never>;
     node: VisualizationNode;
+    showDetails?: boolean;
+    onExportReady?: (exportFn: () => void) => void;
 };
 
 const defaultMargin = { top: 30, left: 30, right: 30, bottom: 70 };
@@ -39,9 +41,12 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
     treeData,
     colorScale,
     node,
+    showDetails,
+    onExportReady,
 }) => {
     const [hoveredNode, setHoveredNode] = useState<HierarchyPointNode<Node> | null>(null);
     const [tree, setTree] = useState<HierarchyNode<Node> | null>(null);
+    const treeGroupRef = useRef<SVGGElement>(null);
     const viewState = node.data.viewState;
     const filteredObjectTypes = viewState?.filteredObjectTypes || [];
 
@@ -51,6 +56,52 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
 
         setTree(hierarchy(copyTreeData, (d) => (d!.isExpanded ? null : d!.children)));
     }, [treeData]);
+
+    const exportSvg = useCallback(() => {
+        const treeGroup = treeGroupRef.current;
+        if (!treeGroup) return;
+
+        const svgEl = treeGroup.closest('svg');
+        if (!svgEl) return;
+
+        // getBBox() returns coords in the group's local space.
+        // The group has translate(margin.left, margin.top), so offset
+        const bbox = treeGroup.getBBox();
+        const padding = 20;
+        const x = bbox.x + margin.left;
+        const y = bbox.y + margin.top;
+
+        const cloned = svgEl.cloneNode(true) as SVGSVGElement;
+
+        // Remove the zoom transform s.t. the tree is fully in the image
+        const zoomG = cloned.querySelector('g');
+        if (zoomG) {
+            zoomG.removeAttribute('transform');
+        }
+
+        cloned.setAttribute(
+            'viewBox',
+            `${x - padding} ${y - padding} ${bbox.width + padding * 2} ${bbox.height + padding * 2}`
+        );
+        cloned.setAttribute('width', `${bbox.width + padding * 2}`);
+        cloned.setAttribute('height', `${bbox.height + padding * 2}`);
+        cloned.style.cursor = '';
+        cloned.style.touchAction = '';
+
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(cloned);
+        const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ocpt.svg';
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [margin]);
+
+    useEffect(() => {
+        onExportReady?.(exportSvg);
+    }, [exportSvg, onExportReady]);
 
     if (width === 0 || height === 0) return null;
 
@@ -113,7 +164,7 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
                                 ref={zoom.containerRef}
                             >
                                 <g transform={zoom.toString()}>
-                                    <Group top={margin.top} left={margin.left}>
+                                    <Group top={margin.top} left={margin.left} innerRef={treeGroupRef}>
                                         <RenderTree
                                             rootNode={tree}
                                             filteredObjectTypes={filteredObjectTypes}
@@ -121,6 +172,7 @@ const OCPTContent: React.FC<OCPTContentProps> = ({
                                             colorScale={colorScale}
                                             sizeWidth={sizeWidth}
                                             sizeHeight={sizeHeight}
+                                            showDetails={showDetails}
                                         />
                                     </Group>
                                 </g>

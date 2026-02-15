@@ -13,6 +13,7 @@ interface TextNodeProps {
     opacity: number;
     node: HierarchyPointNode<Ocpt.Node>;
     key: number;
+    showDetails?: boolean;
     onMouseEnter?: (event: React.MouseEvent, node: HierarchyPointNode<Ocpt.Node>) => void;
     onMouseMove?: (event: React.MouseEvent, node: HierarchyPointNode<Ocpt.Node>) => void;
     onMouseLeave?: (event: React.MouseEvent, node: HierarchyPointNode<Ocpt.Node>) => void;
@@ -32,6 +33,7 @@ const TextNode: React.FC<TextNodeProps> = ({
     colorScale,
     isSilent,
     opacity,
+    showDetails,
     onMouseEnter,
     onMouseMove,
     onMouseLeave,
@@ -59,6 +61,7 @@ const TextNode: React.FC<TextNodeProps> = ({
             left={node.x}
             key={key}
             className="cursor-pointer"
+            fontFamily="Inter, Arial, sans-serif"
             onMouseEnter={(event) => onMouseEnter?.(event, node)}
             onMouseMove={(event) => onMouseMove?.(event, node)}
             onMouseLeave={(event) => onMouseLeave?.(event, node)}
@@ -99,6 +102,35 @@ const TextNode: React.FC<TextNodeProps> = ({
                         fill={colorScale(ot.ot)}
                         opacity={opacity}
                     />
+                ));
+            })()}
+            {showDetails && !isSilent && (() => {
+                const rowHeight = 18;
+                const rectSize = 10;
+                const startY = height / 2 + 8;
+                const leftX = -nodeWidth / 2 + 4;
+                return activity.ots.map((ot, index) => (
+                    <g key={`detail-${index}`} opacity={opacity}>
+                        <rect
+                            x={leftX}
+                            y={startY + index * rowHeight}
+                            width={rectSize}
+                            height={rectSize}
+                            fill={colorScale(ot.ot)}
+                        />
+                        <text
+                            x={leftX + 14}
+                            y={startY + index * rowHeight + rectSize / 2}
+                            dy=".35em"
+                            fill="black"
+                            fontSize={11}
+                        >
+                            <tspan fontWeight={600}>{ot.ot}</tspan>
+                            {ot.exhibits && (
+                                <tspan dx={6} fontSize={10} fontWeight={400}>{ot.exhibits.join(' ')}</tspan>
+                            )}
+                        </text>
+                    </g>
                 ));
             })()}
         </Group>

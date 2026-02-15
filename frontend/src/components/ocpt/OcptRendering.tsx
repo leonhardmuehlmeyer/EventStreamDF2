@@ -17,6 +17,7 @@ interface RenderTreeProps {
     colorScale: ScaleOrdinal<string, string, never>;
     sizeWidth: number;
     sizeHeight: number;
+    showDetails?: boolean;
 }
 
 export const RenderTree: React.FC<RenderTreeProps> = ({
@@ -26,6 +27,7 @@ export const RenderTree: React.FC<RenderTreeProps> = ({
     colorScale,
     sizeWidth,
     sizeHeight,
+    showDetails,
 }) => {
     const [links, setLinks] = useState<HierarchyPointLink<Node>[]>([]);
 
@@ -110,6 +112,7 @@ export const RenderTree: React.FC<RenderTreeProps> = ({
                                         key={key}
                                         setHoveredNode={setHoveredNode}
                                         colorScale={colorScale}
+                                        showDetails={showDetails}
                                     />
                                 );
                             })}

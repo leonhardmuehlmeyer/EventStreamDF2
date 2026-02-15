@@ -1,5 +1,6 @@
 import { ScaleOrdinal } from 'd3';
-import { ShieldCheck } from 'lucide-react';
+import { Download, ShieldCheck } from 'lucide-react';
+import { Button } from '~/components/ui/button';
 import {
     Sidebar,
     SidebarContent,
@@ -9,6 +10,7 @@ import {
     SidebarMenu,
     SidebarMenuItem,
 } from '~/components/ui/sidebar';
+import { Switch } from '~/components/ui/switch';
 import ObjectTypeLegend from '~/components/ocpt/ui/ObjectTypeLegend';
 
 interface OcptSidebarProps {
@@ -19,6 +21,9 @@ interface OcptSidebarProps {
     onFilteredObjectTypesChange: (newFilteredObjectTypes: string[]) => void;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     conformanceData?: any;
+    showDetails: boolean;
+    onShowDetailsChange: (value: boolean) => void;
+    onExport: () => void;
 }
 
 const OcptSidebar: React.FC<OcptSidebarProps> = ({
@@ -28,6 +33,9 @@ const OcptSidebar: React.FC<OcptSidebarProps> = ({
     filteredObjectTypes,
     onFilteredObjectTypesChange,
     conformanceData,
+    showDetails,
+    onShowDetailsChange,
+    onExport,
 }) => {
     return (
         <Sidebar side="right">
@@ -44,6 +52,25 @@ const OcptSidebar: React.FC<OcptSidebarProps> = ({
                                     filteredObjectTypes={filteredObjectTypes}
                                     onFilteredObjectTypesChange={onFilteredObjectTypesChange}
                                 />
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+                <SidebarGroup>
+                    <SidebarGroupLabel>Display</SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem className="ml-1">
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <Switch checked={showDetails} onCheckedChange={onShowDetailsChange} />
+                                    <span>Show Details</span>
+                                </label>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem className="ml-1 mt-2">
+                                <Button variant="outline" size="sm" onClick={onExport} className="w-full">
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Export SVG
+                                </Button>
                             </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>
