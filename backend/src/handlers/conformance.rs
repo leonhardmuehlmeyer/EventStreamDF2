@@ -1,4 +1,4 @@
-use axum::{Json, extract::Path as AxumPath, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::Path as AxumPath, response::IntoResponse};
 use serde_json::json;
 
 use crate::models::ocel::{IndexLinkedOCEL, OCEL};

@@ -312,28 +312,27 @@ pub async fn get_advanced_case_notion(
 
     let context = CaseNotionContext::new(&ocel);
 
-    let evaluation = match &selection {
+    let result = match &selection {
         ObjectTypeSelection::Specific(requested) => {
             best_advanced_case_notion(&context, Some(requested.as_str()))
         }
         ObjectTypeSelection::Default => best_advanced_case_notion(&context, None),
     };
 
-    let evaluation = match evaluation {
+    let (evaluation, selected_arcs_type_level) = match result {
         Some(evaluation) => evaluation,
         None => return not_found_response(CaseKind::Advanced, &selection).into_response(),
     };
 
-    let object_type = match evaluation.object_type.clone() {
-        Some(object_type) => object_type,
-        None => return not_found_response(CaseKind::Advanced, &selection).into_response(),
-    };
+    log::debug!(
+        "Selected arcs for advanced case notion type-level graph: {:?}",
+        selected_arcs_type_level
+    );
 
     let graph_value = build_log_graph_type_level(&ocel);
     let type_level_graph = advanced_case_notion_type_level(
         &graph_value,
-        object_type.as_str(),
-        context.divergence_map(),
+        &selected_arcs_type_level,
     );
 
     let cases: Vec<RawCaseNotionEntry> = evaluation.case_notion.iter().cloned().collect();

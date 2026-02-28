@@ -89,17 +89,29 @@ pub fn generic_case_notion(
         }
 
         // Create a case as tuple of (events, objects, arcs)
-        let arcs: Vec<(String, String)> = events
-            .iter()
-            .flat_map(|&event_id| {
-                e2o_map
-                    .get(event_id)
-                    .into_iter()
-                    .flatten()
-                    .filter(|object_id| objects.contains(object_id))
-                    .map(|object_id| (event_id.clone(), object_id.clone()))
-            })
-            .collect();
+        let mut arcs_set: FxHashSet<(String, String)> = FxHashSet::default();
+
+        for &event_id in &events {
+            if let Some(object_ids) = e2o_map.get(event_id) {
+                for object_id in object_ids {
+                    if objects.contains(object_id) {
+                        arcs_set.insert((event_id.clone(), object_id.clone()));
+                    }
+                }
+            }
+        }
+
+        for &object_id in &objects {
+            if let Some(event_ids) = o2e_map.get(object_id) {
+                for event_id in event_ids {
+                    if events.contains(event_id) {
+                        arcs_set.insert((event_id.clone(), object_id.clone()));
+                    }
+                }
+            }
+        }
+
+        let arcs: Vec<(String, String)> = arcs_set.into_iter().collect();
 
         let case = (
             events.iter().map(|s| (*s).clone()).collect::<Vec<String>>(),
