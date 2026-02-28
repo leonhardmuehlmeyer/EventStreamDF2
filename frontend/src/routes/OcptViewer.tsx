@@ -10,7 +10,6 @@ import { useIsOcptMode } from '~/stores/store';
 import { addIdsToTree } from '~/lib/ocpt/ocptAddIds';
 import { VisualizationNode } from '~/types/explore/nodes';
 import { type Node, type OcptSchemaApi } from '~/types/ocpt/ocpt.types';
-import extendedSampleData from '~/data/ocpt_extended_sample.json';
 
 const OcptViewer: React.FC = () => {
     const [treeData, setTreeData] = useState<Node | null>(null);
@@ -64,15 +63,6 @@ const OcptViewer: React.FC = () => {
         }
     }, [nodeId, nodeData]);
 
-    // TODO: Temporary — load extended OCPT sample data for development
-    useEffect(() => {
-        if (!treeData) {
-            const sample = extendedSampleData as OcptSchemaApi;
-            const idTree = addIdsToTree(sample.hierarchy);
-            setTreeData(idTree);
-            setObjectTypes(sample.ots);
-        }
-    }, []);
 
     return (
         <SidebarProvider>

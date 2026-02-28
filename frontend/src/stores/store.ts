@@ -1,13 +1,9 @@
 import type { HierarchyPointNode } from '@visx/hierarchy/lib/types';
-import { scaleOrdinal } from '@visx/scale';
-import type { ScaleOrdinal } from 'd3-scale';
-import { schemeSet1 } from 'd3-scale-chromatic';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { ExtendedFile } from '~/types/fileObject.types';
+import { ExtendedFile } from '~/types/files.types';
 import type { FlowJson } from '~/types/flow/flow.types';
 import type { ObjectFlowMapRecord, OcelEventData } from '~/types/ocel.types';
-import { type JSONSchema, type TreeNode } from '~/types/ocpt/ocpt.types';
+import { type Node } from '~/types/ocpt/ocpt.types';
 
 // Used for Dropzone and File Management
 interface FileID {
@@ -18,11 +14,6 @@ interface FileID {
 interface AcceptedFile {
     acceptedFile: File | null;
     setAcceptedFile: (acceptedFile: File | null) => void;
-}
-
-interface JSONFile {
-    jsonFile: JSONSchema | null;
-    setJSONFile: (data: JSONSchema) => void;
 }
 
 interface OcelFile {
@@ -36,27 +27,14 @@ interface FileStore {
     removeFile: (file: ExtendedFile) => void;
     clearFiles: () => void;
 }
-
-interface UseFilteredObjectType {
-    filteredObjectTypes: Map<string, string[]>;
-    setFilteredObjectTypes: (nodeId: string, filteredObjectTypes: string[]) => void;
-}
-
-interface ColorScaleState {
-    colorScales: Map<string, { domain: string[]; range: string[] }>;
-    objectTypes: Map<string, string[]>;
-    setColorScaleObjectTypes: (nodeId: string, types: string[]) => void;
-    updateColorScale: (nodeId: string) => void;
-}
-
 interface RenderedOcptStore {
-    renderedOcpt: HierarchyPointNode<TreeNode> | null;
-    setRenderedOcpt: (newRenderedOcpt: HierarchyPointNode<TreeNode> | null) => void;
+    renderedOcpt: HierarchyPointNode<Node> | null;
+    setRenderedOcpt: (newRenderedOcpt: HierarchyPointNode<Node> | null) => void;
 }
 
 interface OriginalRenderedOcptStore {
-    originalRenderedOcpt: HierarchyPointNode<TreeNode> | null;
-    setOriginalRenderedOcpt: (newRenderedOcpt: HierarchyPointNode<TreeNode> | null) => void;
+    originalRenderedOcpt: HierarchyPointNode<Node> | null;
+    setOriginalRenderedOcpt: (newRenderedOcpt: HierarchyPointNode<Node> | null) => void;
 }
 
 interface IsOcptModeStore {
@@ -108,11 +86,6 @@ export const useFileID = create<FileID>()((set) => ({
 export const useAcceptedFile = create<AcceptedFile>((set) => ({
     acceptedFile: null,
     setAcceptedFile: (newAcceptedFile) => set((state) => ({ acceptedFile: newAcceptedFile })),
-}));
-
-export const useJSONFile = create<JSONFile>((set) => ({
-    jsonFile: null,
-    setJSONFile: (newJSONFile) => set((state) => ({ jsonFile: newJSONFile })),
 }));
 
 export const useOcelFile = create<OcelFile>((set) => ({
