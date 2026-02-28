@@ -1,13 +1,13 @@
 // Import BTreeSet for ordered sets, usable as FxHashMap keys
-use crate::core::case_notion::log_graphs::{ArcEntry, LogGraphTypeLevel};
+use crate::core::case_notion::log_graphs::LogGraphTypeLevel;
 use crate::core::case_notion::main::{CaseNotionContext, CaseNotionEvaluation};
 use crate::core::case_notion::measures::calculate_measures;
 use crate::core::case_notion::utils::is_better_evaluation;
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::default::Default;
-use rayon::prelude::*;
 
 /*
     Traditional case notion. Add all related events given the object type.
@@ -84,12 +84,9 @@ pub fn traditional_case_notion_type_level(
     let mut selected_arcs = Vec::new();
     let mut deselected_arcs = Vec::new();
     for arc in arcs.into_iter() {
-        if arc.target_type == starting_object_type {
-            selected_event_types_set.insert(arc.source_type.clone());
-            selected_arcs.push(ArcEntry {
-                source_type: starting_object_type.to_string(),
-                target_type: arc.source_type,
-            });
+        if arc.source_type == starting_object_type {
+            selected_event_types_set.insert(arc.target_type.clone());
+            selected_arcs.push(arc);
         } else {
             deselected_arcs.push(arc);
         }
@@ -142,21 +139,19 @@ pub fn traditional_case_notion(
             }
             evaluate_traditional_case_notion_for_object_type(context, requested)
         }
-        None => {
-            context
-                .sorted_object_types()
-                .par_iter()
-                .filter_map(|object_type| {
-                    evaluate_traditional_case_notion_for_object_type(context, object_type)
-                })
-                .reduce_with(|best, candidate| {
-                    if is_better_evaluation(&candidate, Some(&best)) {
-                        candidate
-                    } else {
-                        best
-                    }
-                })
-        }
+        None => context
+            .sorted_object_types()
+            .par_iter()
+            .filter_map(|object_type| {
+                evaluate_traditional_case_notion_for_object_type(context, object_type)
+            })
+            .reduce_with(|best, candidate| {
+                if is_better_evaluation(&candidate, Some(&best)) {
+                    candidate
+                } else {
+                    best
+                }
+            }),
     }
 }
 

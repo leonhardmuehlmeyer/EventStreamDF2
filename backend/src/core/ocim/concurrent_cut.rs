@@ -87,10 +87,7 @@ pub fn is_concurrent_cut_valid(
         for a in part {
             if let Some(related_ots) = global_data.related.get(a) {
                 for ot in related_ots {
-                    if projected_end
-                        .get(ot)
-                        .map_or(false, |ends| ends.contains(a))
-                    {
+                    if projected_end.get(ot).map_or(false, |ends| ends.contains(a)) {
                         let end_count = local_data
                             .dfgs
                             .get(ot)

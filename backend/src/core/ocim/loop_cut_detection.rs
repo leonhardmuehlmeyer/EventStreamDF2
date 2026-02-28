@@ -8,11 +8,17 @@ use crate::core::ocim::loop_cut::is_loop_cut_valid;
 use crate::models::ocpt::OCPTOperatorType;
 
 /// Port of the Python `check_loop` helper.
-pub fn check_loop(local_data: &LocalData, global_data: &GlobalData, a: &String, b: &String) -> bool {
-    let shared_related: FxHashSet<String> = match (global_data.related.get(a), global_data.related.get(b)) {
-        (Some(rel_a), Some(rel_b)) => rel_a.intersection(rel_b).cloned().collect(),
-        _ => FxHashSet::default(),
-    };
+pub fn check_loop(
+    local_data: &LocalData,
+    global_data: &GlobalData,
+    a: &String,
+    b: &String,
+) -> bool {
+    let shared_related: FxHashSet<String> =
+        match (global_data.related.get(a), global_data.related.get(b)) {
+            (Some(rel_a), Some(rel_b)) => rel_a.intersection(rel_b).cloned().collect(),
+            _ => FxHashSet::default(),
+        };
 
     // Divergent set over the full alphabet (matches Python call).
     let divergent = get_divergent_types(a, b, &local_data.alphabet, global_data);
@@ -28,8 +34,10 @@ pub fn check_loop(local_data: &LocalData, global_data: &GlobalData, a: &String, 
             return true;
         }
 
-        let a_is_boundary = starts.get(a).copied().unwrap_or(0) > 0 || ends.get(a).copied().unwrap_or(0) > 0;
-        let b_is_boundary = starts.get(b).copied().unwrap_or(0) > 0 || ends.get(b).copied().unwrap_or(0) > 0;
+        let a_is_boundary =
+            starts.get(a).copied().unwrap_or(0) > 0 || ends.get(a).copied().unwrap_or(0) > 0;
+        let b_is_boundary =
+            starts.get(b).copied().unwrap_or(0) > 0 || ends.get(b).copied().unwrap_or(0) > 0;
         if a_is_boundary && b_is_boundary {
             return true;
         }
@@ -145,12 +153,9 @@ pub fn find_cut_loop(
                 .collect();
 
             if is_loop_cut_valid(local_data, global_data, &[body.clone(), redo.clone()]) {
-
                 println!(
                     "Loop cut found with body {:?} and redo {:?} for object type {}",
-                    body,
-                    redo,
-                    ot
+                    body, redo, ot
                 );
 
                 return Some((vec![body.clone(), redo], OCPTOperatorType::Loop(None)));

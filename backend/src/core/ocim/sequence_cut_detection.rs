@@ -1,13 +1,13 @@
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
-use petgraph::algo::toposort;
-use petgraph::graph::DiGraph;
 use crate::core::ocim::auxiliary_methods::{
     connected_partitions, get_divergent_types, get_non_divergent_types,
 };
 use crate::core::ocim::common_data::{GlobalData, LocalData};
 use crate::core::ocim::sequence_cut::is_sequence_cut_valid;
 use crate::models::ocpt::OCPTOperatorType;
+use petgraph::algo::toposort;
+use petgraph::graph::DiGraph;
 
 /// Check sequence condition 1:
 /// for each non-divergent object type shared by (a,b), the closure must be
@@ -33,11 +33,7 @@ fn check_sequence_1(
 
 /// Check sequence condition 2 on partition-level reachability.
 /// Returns true if both directions are present or both absent between partitions i and j.
-fn check_sequence_2(
-    partition_closure: &HashSet<(usize, usize)>,
-    i: usize,
-    j: usize,
-) -> bool {
+fn check_sequence_2(partition_closure: &HashSet<(usize, usize)>, i: usize, j: usize) -> bool {
     let ij = partition_closure.contains(&(i, j));
     let ji = partition_closure.contains(&(j, i));
     (ij && ji) || (!ij && !ji)
@@ -304,11 +300,9 @@ pub fn find_cut_sequence(
 mod tests {
     use super::*;
     use crate::core::ocim::algorithm::ocim_init;
-    use crate::models::ocpt::{OCPTLeafLabel, OCPTOperatorType, OCPTNode};
+    use crate::models::ocel::{OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType};
+    use crate::models::ocpt::{OCPTLeafLabel, OCPTNode, OCPTOperatorType};
     use chrono::Utc;
-    use crate::models::ocel::{
-        OCEL, OCELEvent, OCELObject, OCELRelationship, OCELType,
-    };
     use std::path::Path;
     use std::thread;
     use std::time::Duration;
@@ -436,7 +430,10 @@ mod tests {
                 panic!("Expected second child to be a LeafNode");
             }
         } else {
-            panic!("Expected a Sequence OperatorNode, but found {:?}", ocpt.root);
+            panic!(
+                "Expected a Sequence OperatorNode, but found {:?}",
+                ocpt.root
+            );
         }
     }
 }

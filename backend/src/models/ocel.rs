@@ -21,18 +21,17 @@ use std::collections::{BTreeMap, BTreeSet};
 use tokio::fs;
 use uuid::Uuid;
 
-
-
-
 pub trait OCELUtils {
     fn detect_diverging_object_types(&self) -> FxHashMap<String, FxHashSet<String>>; // ! WRONG ORDER (required by df2)
     fn _get_related_object_types_for_activity(&self, activity: &String) -> FxHashSet<String>;
     // if more than one pattern is to be detected, return as tuple for better efficiency
-    fn get_interaction_patterns(&self) -> (
-        FxHashMap<String,  FxHashSet<String>>, //divergence
-        FxHashMap<String,  FxHashSet<String>>, //convergence
-        FxHashMap<String,  FxHashSet<String>>, //related
-        FxHashMap<String,  FxHashSet<String>>, //deficiency
+    fn get_interaction_patterns(
+        &self,
+    ) -> (
+        FxHashMap<String, FxHashSet<String>>, //divergence
+        FxHashMap<String, FxHashSet<String>>, //convergence
+        FxHashMap<String, FxHashSet<String>>, //related
+        FxHashMap<String, FxHashSet<String>>, //deficiency
     );
 }
 
@@ -41,11 +40,12 @@ impl OCELUtils for OCEL {
         let obj_id_to_type = map_object_id_to_type(&self.objects);
         let unique_object_types: FxHashSet<String> =
             self.object_types.iter().map(|o| o.name.clone()).collect();
-            
+
         let unique_activities: FxHashSet<String> =
             self.event_types.iter().map(|e| e.name.clone()).collect();
 
-        let event_identifiers = build_event_identifiers(&self.events, &obj_id_to_type, &unique_object_types);
+        let event_identifiers =
+            build_event_identifiers(&self.events, &obj_id_to_type, &unique_object_types);
 
         let divergence_map = detect_diverging_object_types(
             &event_identifiers,
@@ -56,7 +56,8 @@ impl OCELUtils for OCEL {
     }
 
     fn _get_related_object_types_for_activity(&self, activity: &String) -> FxHashSet<String> {
-        let related_ot = self.events
+        let related_ot = self
+            .events
             .iter()
             .filter(|e| &e.event_type == activity)
             .flat_map(|e| {
@@ -72,34 +73,37 @@ impl OCELUtils for OCEL {
         related_ot
     }
 
-    fn get_interaction_patterns(&self) -> (
-        FxHashMap<String,  FxHashSet<String>>, // divergence
-        FxHashMap<String,  FxHashSet<String>>, // convergence
-        FxHashMap<String,  FxHashSet<String>>, // related
-        FxHashMap<String,  FxHashSet<String>>, // deficiency
+    fn get_interaction_patterns(
+        &self,
+    ) -> (
+        FxHashMap<String, FxHashSet<String>>, // divergence
+        FxHashMap<String, FxHashSet<String>>, // convergence
+        FxHashMap<String, FxHashSet<String>>, // related
+        FxHashMap<String, FxHashSet<String>>, // deficiency
     ) {
-
         let locel = IndexLinkedOCEL::from_ocel(self.clone());
 
         let directly_follows_graph: OCDirectlyFollowsGraph<'_> =
-            OCDirectlyFollowsGraph::create_from_locel(&locel);
-
+            OCDirectlyFollowsGraph::create_from_ocel(&locel);
+            
         // Sets up the result FxHashMaps
-        let mut start_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> = FxHashMap::default();
-        let mut end_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> = FxHashMap::default();
+        let mut start_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
+            FxHashMap::default();
+        let mut end_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
+            FxHashMap::default();
         let mut directly_follows_ev_types_per_ob_type: FxHashMap<
             String,
-             FxHashSet<(String, String)>,
+            FxHashSet<(String, String)>,
         > = FxHashMap::default();
-        let mut related_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> =
+        let mut related_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
             FxHashMap::default();
-        let mut divergent_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> =
+        let mut divergent_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
             FxHashMap::default();
-        let mut convergent_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> =
+        let mut convergent_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
             FxHashMap::default();
-        let mut deficient_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> =
+        let mut deficient_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
             FxHashMap::default();
-        let mut optional_ev_type_per_ob_type: FxHashMap<String,  FxHashSet<String>> =
+        let mut optional_ev_type_per_ob_type: FxHashMap<String, FxHashSet<String>> =
             FxHashMap::default();
 
         // Extracts the DFG information
@@ -109,11 +113,16 @@ impl OCELUtils for OCEL {
                 .get(ob_type)
                 .unwrap();
 
-            start_ev_type_per_ob_type
-                .insert(ob_type.to_string(), ev_type_dfg.start_activities.iter().cloned().collect());
-            end_ev_type_per_ob_type.insert(ob_type.to_string(), ev_type_dfg.end_activities.iter().cloned().collect());
+            start_ev_type_per_ob_type.insert(
+                ob_type.to_string(),
+                ev_type_dfg.start_activities.iter().cloned().collect(),
+            );
+            end_ev_type_per_ob_type.insert(
+                ob_type.to_string(),
+                ev_type_dfg.end_activities.iter().cloned().collect(),
+            );
 
-            let ev_type_directly_follows:  FxHashSet<(String, String)> = ev_type_dfg
+            let ev_type_directly_follows: FxHashSet<(String, String)> = ev_type_dfg
                 .directly_follows_relations
                 .keys()
                 .map(|(from, to)| (from.to_string(), to.to_string()))
@@ -121,20 +130,20 @@ impl OCELUtils for OCEL {
             directly_follows_ev_types_per_ob_type
                 .insert(ob_type.to_string(), ev_type_directly_follows);
 
-            let ev_types:  FxHashSet<String> = locel
+            let ev_types: FxHashSet<String> = locel
                 .get_ev_types()
                 .map(|event_type| event_type.to_string())
                 .collect();
 
             related_ev_type_per_ob_type.insert(ob_type.to_string(), ev_types.clone());
-            divergent_ev_type_per_ob_type.insert(ob_type.to_string(),  FxHashSet::default());
-            convergent_ev_type_per_ob_type.insert(ob_type.to_string(),  FxHashSet::default());
-            deficient_ev_type_per_ob_type.insert(ob_type.to_string(),  FxHashSet::default());
-            optional_ev_type_per_ob_type.insert(ob_type.to_string(),  FxHashSet::default());
+            divergent_ev_type_per_ob_type.insert(ob_type.to_string(), FxHashSet::default());
+            convergent_ev_type_per_ob_type.insert(ob_type.to_string(), FxHashSet::default());
+            deficient_ev_type_per_ob_type.insert(ob_type.to_string(), FxHashSet::default());
+            optional_ev_type_per_ob_type.insert(ob_type.to_string(), FxHashSet::default());
         });
 
         locel.get_ev_types().for_each(|ev_type| {
-            let ev_type_e2o_relations:  FxHashSet<(&EventIndex, &ObjectIndex)> = locel
+            let ev_type_e2o_relations: FxHashSet<(&EventIndex, &ObjectIndex)> = locel
                 .get_evs_of_type(ev_type)
                 .flat_map(|ev_index| {
                     locel
@@ -144,7 +153,7 @@ impl OCELUtils for OCEL {
                 .collect();
 
             locel.get_ob_types().for_each(|ob_type| {
-                let ob_type_e2o_relations:  FxHashSet<(&EventIndex, &ObjectIndex)> = locel
+                let ob_type_e2o_relations: FxHashSet<(&EventIndex, &ObjectIndex)> = locel
                     .get_obs_of_type(ob_type)
                     .flat_map(|ob_index| {
                         locel
@@ -153,7 +162,7 @@ impl OCELUtils for OCEL {
                     })
                     .collect::<FxHashSet<(&EventIndex, &ObjectIndex)>>();
 
-                let ev_ob_type_e2o_relations:  FxHashSet<&(&EventIndex, &ObjectIndex)> =
+                let ev_ob_type_e2o_relations: FxHashSet<&(&EventIndex, &ObjectIndex)> =
                     ob_type_e2o_relations
                         .intersection(&ev_type_e2o_relations)
                         .collect::<FxHashSet<_>>();
@@ -225,7 +234,10 @@ impl OCELUtils for OCEL {
             let mut reversed: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
             for (key, values) in map {
                 for value in values {
-                    reversed.entry(value.clone()).or_default().insert(key.clone());
+                    reversed
+                        .entry(value.clone())
+                        .or_default()
+                        .insert(key.clone());
                 }
             }
             reversed
@@ -367,7 +379,6 @@ impl OCELUtils for OCEL {
 
     //     (divergence, convergence, related, deficiency)
     // }
-
 }
 
 /*
@@ -459,7 +470,6 @@ fn detect_diverging_object_types(
 
     divergent_object_types_map
 }
-
 
 /*
     Auxiliary function:
@@ -592,7 +602,6 @@ pub fn objects_to_id_list(objects: &[OCELObject]) -> Vec<String> {
     objects.iter().map(|object| object.id.clone()).collect()
 }
 
-
 ///
 /// Finds an object type to be convergent if there is an event that has an e2o relation to two
 /// objects with the same object type
@@ -663,7 +672,6 @@ pub fn is_divergent_locel(
     false
 }
 
-
 /// Implementation of [`ImportableFromPath`] for [`OCEL`].
 ///
 /// This implementation constructs the file path using a standard naming pattern:
@@ -725,8 +733,6 @@ impl ExportableToPath for OCEL {
         Ok(export_id)
     }
 }
-
-
 
 #[tokio::test]
 async fn test_interaction_patterns_and_divergence() {

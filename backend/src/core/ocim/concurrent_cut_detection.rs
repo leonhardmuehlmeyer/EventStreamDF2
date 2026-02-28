@@ -31,8 +31,14 @@ fn check_concurrent(
             None => return true,
         };
 
-        let ab = dfg.get(&(a.to_string(), b.to_string())).copied().unwrap_or(0);
-        let ba = dfg.get(&(b.to_string(), a.to_string())).copied().unwrap_or(0);
+        let ab = dfg
+            .get(&(a.to_string(), b.to_string()))
+            .copied()
+            .unwrap_or(0);
+        let ba = dfg
+            .get(&(b.to_string(), a.to_string()))
+            .copied()
+            .unwrap_or(0);
         if ab == 0 || ba == 0 {
             return true;
         }
@@ -101,8 +107,9 @@ pub fn find_cut_concurrent(
         for j in (i + 1)..n {
             let a = &local_data.alphabet[i];
             let b = &local_data.alphabet[j];
-            let connected = check_concurrent(local_data, global_data, a, b, &lookup_start, &lookup_end)
-                || check_concurrent(local_data, global_data, b, a, &lookup_start, &lookup_end);
+            let connected =
+                check_concurrent(local_data, global_data, a, b, &lookup_start, &lookup_end)
+                    || check_concurrent(local_data, global_data, b, a, &lookup_start, &lookup_end);
             if connected {
                 uf.union(i, j);
             }
@@ -325,8 +332,8 @@ pub fn find_cut_concurrent(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::ocim::common_data::{GlobalData, LocalData};
     use crate::models::ocel::OCEL;
-    use crate::core::ocim::common_data::{LocalData, GlobalData};
     use serde_json;
     use std::path::Path;
 

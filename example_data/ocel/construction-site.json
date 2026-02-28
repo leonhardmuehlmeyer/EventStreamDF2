@@ -1,6 +1,7 @@
 {
   "eventTypes": [
     { "name": "Worker arrival", "attributes": [] },
+    { "name": "Truck arrival", "attributes": [] },
     { "name": "Load materials", "attributes": [] },
     { "name": "Transport materials", "attributes": [] },
     { "name": "Unload materials", "attributes": [] },

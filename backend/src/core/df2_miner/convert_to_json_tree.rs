@@ -12,7 +12,7 @@ pub struct OutputJson {
 #[serde(untagged)]
 pub enum HierarchyNode {
     Operator {
-        value: String,
+        value: OperatorValue,
         children: Vec<HierarchyNode>,
     },
     Activity {
@@ -36,6 +36,29 @@ struct ObjectType {
     exhibits: Option<Vec<String>>,
 }
 
+#[derive(Serialize)]
+pub struct OperatorValue {
+    pub operator: OperatorFE,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity: Option<Vec<IdentityRelation>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OperatorFE {
+    Sequence,
+    Xor,
+    Parallel,
+    Loop,
+}
+
+#[derive(Serialize)]
+pub struct IdentityRelation {
+    pub left: Vec<String>,
+    pub right: Vec<String>,
+    pub kind: String,
+}
+
 pub fn convert_tree(
     node: &TreeNode,
     con: &HashMap<String, Vec<String>>,
@@ -46,14 +69,17 @@ pub fn convert_tree(
 
     if is_operator {
         let op = match node.label.as_str() {
-            "excl" => "xor",
-            "seq" => "sequence",
-            "para" => "parallel",
-            "redo" => "redo",
+            "excl" => OperatorFE::Xor,
+            "seq" => OperatorFE::Sequence,
+            "para" => OperatorFE::Parallel,
+            "redo" => OperatorFE::Loop,
             _ => panic!("Unknown operator"),
         };
         HierarchyNode::Operator {
-            value: op.to_string(),
+            value: OperatorValue {
+                operator: op,
+                identity: None,
+            },
             children: node
                 .children
                 .iter()
@@ -136,7 +162,10 @@ pub fn build_output(
         convert_tree(&forest[0], con, defi, div)
     } else {
         HierarchyNode::Operator {
-            value: "sequence".to_string(),
+            value: OperatorValue {
+                operator: OperatorFE::Sequence,
+                identity: None,
+            },
             children: forest
                 .iter()
                 .map(|n| convert_tree(n, con, defi, div))

@@ -3,11 +3,11 @@ use crate::core::case_notion::log_graphs::{ArcEntry, LogGraphTypeLevel};
 use crate::core::case_notion::main::{CaseNotionContext, CaseNotionEvaluation};
 use crate::core::case_notion::measures::calculate_measures;
 use crate::core::case_notion::utils::is_better_evaluation;
+use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value;
 use std::collections::BTreeSet;
 use std::default::Default;
-use rayon::prelude::*;
 
 /*
     Advanced case notion. Repeatedly add events & object nodes to case notion given start object type.
@@ -23,6 +23,7 @@ use rayon::prelude::*;
     @param given_object_type: String
     @param divergence_map: &FxHashMap<String, FxHashSet<String>>, // Precomputed divergence map
     @return Advanced case notion: FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)> // events, objects, arches
+    @return selected_arcs_type_level: FxHashSet<(String, String)> // set of (event_type, object_type) - or vice versea - arcs selected in the type-level graph
 */
 pub fn advanced_case_notion_for_ot(
     events: &FxHashMap<
@@ -35,8 +36,20 @@ pub fn advanced_case_notion_for_ot(
     objects: &FxHashMap<String, (String, Vec<String>)>, // object_id -> (object_type, related_events)
     given_object_type: String,
     divergence_map: &FxHashMap<String, FxHashSet<String>>, // Precomputed divergence map
-) -> FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)> {
+) -> (FxHashSet<(Vec<String>, Vec<String>, Vec<(String, String)>)>, FxHashSet<(String, String)>) {
     let mut result = FxHashSet::default();
+
+    let mut selected_arcs_type_level = FxHashSet::default();
+
+    let o_id2otype: FxHashMap<&String, &String> = objects
+        .iter()
+        .map(|(id, (obj_type, _))| (id, obj_type))
+        .collect();
+
+    let e_id2etype: FxHashMap<&String, &String> = events
+        .iter()
+        .map(|(id, (activity, _))| (id, activity))
+        .collect();
 
     // For better internal memory management: Filter for relevant object ids first.
     let relevant_object_ids: Vec<&String> = objects
@@ -160,6 +173,7 @@ pub fn advanced_case_notion_for_ot(
                     if o_prime.contains(obj_id) {
                         // ...then add an arch from the event to the object.
                         arches.insert((event_id.clone(), obj_id.clone()));
+                        selected_arcs_type_level.insert((e_id2etype.get(event_id).unwrap().to_string(), o_id2otype.get(obj_id).unwrap().to_string()));
                     }
                 }
             }
@@ -176,6 +190,7 @@ pub fn advanced_case_notion_for_ot(
                     if e_prime.contains(event_id) {
                         // ...then add an arch from the object to the event.
                         arches.insert((event_id.clone(), obj_id.clone()));
+                        selected_arcs_type_level.insert((o_id2otype.get(obj_id).unwrap().to_string(), e_id2etype.get(event_id).unwrap().to_string()));
                     }
                 }
             }
@@ -188,7 +203,7 @@ pub fn advanced_case_notion_for_ot(
         ));
     }
 
-    result
+    (result, selected_arcs_type_level)
 }
 
 /// Partition the type-level log graph using the advanced case notion logic.
@@ -197,12 +212,12 @@ pub fn advanced_case_notion_for_ot(
 /// into the deselected fields.
 pub fn advanced_case_notion_type_level(
     graph_value: &Value,
-    starting_object_type: &str,
-    divergence_map: &FxHashMap<String, FxHashSet<String>>,
+    selected_arcs: &FxHashSet<(String, String)>,
 ) -> Value {
     let graph: LogGraphTypeLevel = serde_json::from_value(graph_value.clone())
         .expect("build_log_graph_type_level must return a valid graph structure");
 
+    // 1. Combine all nodes and arcs into single lists.
     let LogGraphTypeLevel {
         mut event_types,
         mut object_types,
@@ -216,173 +231,40 @@ pub fn advanced_case_notion_type_level(
     object_types.extend(deselected_object_types);
     arcs.extend(deselected_arcs);
 
-    if !object_types
-        .iter()
-        .any(|object_type| object_type == starting_object_type)
-    {
-        let result = LogGraphTypeLevel {
-            event_types: Vec::new(),
-            object_types: Vec::new(),
-            arcs: Vec::new(),
-            deselected_event_types: event_types,
-            deselected_object_types: object_types,
-            deselected_arcs: arcs,
-        };
-        return serde_json::to_value(result)
-            .expect("advanced case notion graph must serialize to JSON");
+    // 2. Partition arcs based on the `selected_arcs` parameter (as directed pairs).
+    let (final_selected_arcs, final_deselected_arcs): (Vec<ArcEntry>, Vec<ArcEntry>) =
+        arcs.into_iter().partition(|arc| {
+            let direct_pair = (arc.source_type.clone(), arc.target_type.clone());
+            selected_arcs.contains(&direct_pair)
+        });
+
+    // 3. Identify selected nodes from the final selected arcs.
+    let mut selected_node_types: FxHashSet<String> = FxHashSet::default();
+    for arc in &final_selected_arcs {
+        selected_node_types.insert(arc.source_type.clone());
+        selected_node_types.insert(arc.target_type.clone());
     }
 
-    let event_type_set: FxHashSet<String> = event_types.iter().cloned().collect();
-    let object_type_set: FxHashSet<String> = object_types.iter().cloned().collect();
+    // 4. Partition nodes based on the `selected_node_types` set.
+    let (final_selected_event_types, final_deselected_event_types): (Vec<String>, Vec<String>) =
+        event_types
+            .into_iter()
+            .partition(|et| selected_node_types.contains(et));
 
-    let mut event_to_objects: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
-    let mut object_to_events: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
+    let (final_selected_object_types, final_deselected_object_types): (Vec<String>, Vec<String>) =
+        object_types
+            .into_iter()
+            .partition(|ot| selected_node_types.contains(ot));
 
-    for arc in &arcs {
-        let source_is_event = event_type_set.contains(&arc.source_type);
-        let source_is_object = object_type_set.contains(&arc.source_type);
-        let target_is_event = event_type_set.contains(&arc.target_type);
-        let target_is_object = object_type_set.contains(&arc.target_type);
 
-        if source_is_event && target_is_object {
-            event_to_objects
-                .entry(arc.source_type.clone())
-                .or_default()
-                .insert(arc.target_type.clone());
-        } else if source_is_object && target_is_event {
-            object_to_events
-                .entry(arc.source_type.clone())
-                .or_default()
-                .insert(arc.target_type.clone());
-        }
-    }
-
-    let mut oriented_arcs: FxHashSet<(String, String)> = FxHashSet::default();
-    let mut object_level: FxHashMap<String, usize> = FxHashMap::default();
-    let mut event_level: FxHashMap<String, usize> = FxHashMap::default();
-
-    let mut visited_objects: FxHashSet<String> = FxHashSet::default();
-    let mut non_diverging_objects: FxHashSet<String> = FxHashSet::default();
-    let mut diverging_objects: FxHashSet<String> = FxHashSet::default();
-    let mut frontier_objects: FxHashSet<String> = FxHashSet::default();
-    let mut visited_events: FxHashSet<String> = FxHashSet::default();
-
-    visited_objects.insert(starting_object_type.to_string());
-    non_diverging_objects.insert(starting_object_type.to_string());
-    frontier_objects.insert(starting_object_type.to_string());
-    object_level.insert(starting_object_type.to_string(), 0);
-
-    while !frontier_objects.is_empty() {
-        let mut new_events: FxHashSet<String> = FxHashSet::default();
-        for object_type in &frontier_objects {
-            let level = *object_level.get(object_type).unwrap_or(&0);
-            if let Some(events) = object_to_events.get(object_type) {
-                for event_type in events {
-                    if event_level
-                        .get(event_type)
-                        .map(|ev_level| *ev_level > level)
-                        .unwrap_or(true)
-                    {
-                        oriented_arcs.insert((object_type.clone(), event_type.clone()));
-                    }
-
-                    event_level.entry(event_type.clone()).or_insert(level + 1);
-
-                    if visited_events.insert(event_type.clone()) {
-                        new_events.insert(event_type.clone());
-                    }
-                }
-            }
-        }
-
-        let mut new_frontier_objects: FxHashSet<String> = FxHashSet::default();
-        for event_type in &new_events {
-            let level = *event_level.get(event_type).unwrap_or(&0);
-            if let Some(objects) = event_to_objects.get(event_type) {
-                for object_type in objects {
-                    if object_level
-                        .get(object_type)
-                        .map(|obj_level| *obj_level > level)
-                        .unwrap_or(true)
-                    {
-                        oriented_arcs.insert((event_type.clone(), object_type.clone()));
-                    }
-
-                    if object_level.contains_key(object_type) {
-                        continue;
-                    }
-
-                    object_level.insert(object_type.clone(), level + 1);
-                    visited_objects.insert(object_type.clone());
-
-                    let diverges = divergence_map
-                        .get(event_type)
-                        .map(|set| set.contains(object_type))
-                        .unwrap_or(false);
-
-                    if diverges {
-                        diverging_objects.insert(object_type.clone());
-                    } else {
-                        non_diverging_objects.insert(object_type.clone());
-                        new_frontier_objects.insert(object_type.clone());
-                    }
-                }
-            }
-        }
-
-        frontier_objects = new_frontier_objects;
-    }
-
-    let mut selected_event_types = Vec::new();
-    let mut deselected_event_types = Vec::new();
-    for event_type in event_types.into_iter() {
-        if visited_events.contains(&event_type) {
-            selected_event_types.push(event_type);
-        } else {
-            deselected_event_types.push(event_type);
-        }
-    }
-
-    let mut selected_object_types = Vec::new();
-    let mut deselected_object_types = Vec::new();
-    for object_type in object_types.into_iter() {
-        if non_diverging_objects.contains(&object_type) {
-            selected_object_types.push(object_type);
-        } else if diverging_objects.contains(&object_type) || visited_objects.contains(&object_type)
-        {
-            deselected_object_types.push(object_type);
-        } else {
-            deselected_object_types.push(object_type);
-        }
-    }
-
-    let mut selected_arcs: Vec<ArcEntry> = Vec::new();
-    let mut deselected_arcs: Vec<ArcEntry> = Vec::new();
-    for (source_type, target_type) in oriented_arcs.into_iter() {
-        let selected = (non_diverging_objects.contains(&source_type)
-            && visited_events.contains(&target_type))
-            || (visited_events.contains(&source_type)
-                && non_diverging_objects.contains(&target_type));
-        if selected {
-            selected_arcs.push(ArcEntry {
-                source_type,
-                target_type,
-            });
-        } else {
-            deselected_arcs.push(ArcEntry {
-                source_type,
-                target_type,
-            });
-        }
-    }
-
+    // 5. Construct the final result.
     let result = LogGraphTypeLevel {
-        event_types: selected_event_types,
-        object_types: selected_object_types,
-        arcs: selected_arcs,
-        deselected_event_types,
-        deselected_object_types,
-        deselected_arcs,
+        event_types: final_selected_event_types,
+        object_types: final_selected_object_types,
+        arcs: final_selected_arcs,
+        deselected_event_types: final_deselected_event_types,
+        deselected_object_types: final_deselected_object_types,
+        deselected_arcs: final_deselected_arcs,
     };
 
     serde_json::to_value(result).expect("advanced case notion graph must serialize to JSON")
@@ -391,7 +273,7 @@ pub fn advanced_case_notion_type_level(
 pub fn best_advanced_case_notion(
     context: &CaseNotionContext,
     object_type: Option<&str>,
-) -> Option<CaseNotionEvaluation> {
+) -> Option<(CaseNotionEvaluation, FxHashSet<(String, String)>)> {
     match object_type {
         Some(requested) => {
             if !context
@@ -403,29 +285,27 @@ pub fn best_advanced_case_notion(
             }
             evaluate_advanced_case_notion_for_object_type(context, requested)
         }
-        None => {
-            context
-                .sorted_object_types()
-                .par_iter()
-                .filter_map(|object_type| {
-                    evaluate_advanced_case_notion_for_object_type(context, object_type)
-                })
-                .reduce_with(|best, candidate| {
-                    if is_better_evaluation(&candidate, Some(&best)) {
-                        candidate
-                    } else {
-                        best
-                    }
-                })
-        }
+        None => context
+            .sorted_object_types()
+            .par_iter()
+            .filter_map(|object_type| {
+                evaluate_advanced_case_notion_for_object_type(context, object_type)
+            })
+            .reduce_with(|best, candidate| {
+                if is_better_evaluation(&candidate.0, Some(&best.0)) {
+                    candidate
+                } else {
+                    best
+                }
+            }),
     }
 }
 
 fn evaluate_advanced_case_notion_for_object_type(
     context: &CaseNotionContext,
     object_type: &str,
-) -> Option<CaseNotionEvaluation> {
-    let case_notion = advanced_case_notion_for_ot(
+) -> Option<(CaseNotionEvaluation, FxHashSet<(String, String)>)> {
+    let (case_notion, selected_arcs_type_level) = advanced_case_notion_for_ot(
         context.cleaned_event_identifiers(),
         context.object_identifiers(),
         object_type.to_string(),
@@ -444,9 +324,9 @@ fn evaluate_advanced_case_notion_for_object_type(
         context.total_number_of_objects(),
         context.total_number_of_events(),
     );
-    Some(CaseNotionEvaluation::new(
+    Some((CaseNotionEvaluation::new(
         Some(object_type.to_string()),
         measures,
         case_notion,
-    ))
+    ), selected_arcs_type_level))
 }

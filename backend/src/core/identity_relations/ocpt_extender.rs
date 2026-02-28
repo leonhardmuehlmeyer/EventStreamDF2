@@ -1,8 +1,10 @@
 use std::collections::HashSet;
 
-use crate::models::ocpt::{IdentityRelation, OCPTLeafLabel, OCPTNode, OCPTOperator};
+use crate::models::ocpt::{
+    IdentityRelation, IdentityRelationKind, OCPTLeafLabel, OCPTNode, OCPTOperator,
+};
 
-use super::{check_relation, Relation};
+use super::{Relation, check_relation};
 
 fn collect_activities(node: &OCPTNode, out: &mut HashSet<String>) {
     match node {
@@ -46,6 +48,16 @@ fn set_to_sorted_vec(set: &HashSet<String>) -> Vec<String> {
     items
 }
 
+fn relation_priority(kind: &IdentityRelationKind) -> usize {
+    match kind {
+        IdentityRelationKind::Sync => 0,
+        IdentityRelationKind::ImpConcurrent => 1,
+        IdentityRelationKind::ImpOrdered => 2,
+        // Legacy priority buckets: treat newer relation kinds as lowest-priority implication.
+        _ => 2,
+    }
+}
+
 pub fn get_extended_ocpt(
     ocpt: OCPTNode,
     relations: &[Relation],
@@ -64,42 +76,48 @@ pub fn get_extended_ocpt(
                 collect_activities(child, &mut activities);
             }
 
-            for ot1 in &candidates {
-                for ot2 in &candidates {
-                    if ot1 == ot2 {
-                        continue;
-                    }
+            for priority in 0..3 {
+                for ot1 in &candidates {
+                    for ot2 in &candidates {
+                        if ot1 == ot2 {
+                            continue;
+                        }
 
-                    let mut union_types = ot1.clone();
-                    union_types.extend(ot2.iter().cloned());
+                        let mut union_types = ot1.clone();
+                        union_types.extend(ot2.iter().cloned());
 
-                    let sub_relations: Vec<Relation> = relations
-                        .iter()
-                        .filter(|(_eid, activity, _timestamp, _oid, otype)| {
-                            activities.contains(activity) && union_types.contains(otype)
-                        })
-                        .cloned()
-                        .collect();
-
-                    if let Some(kind) = check_relation(ot1, ot2, &sub_relations) {
-                        let mut next_candidates: Vec<HashSet<String>> = candidates
+                        let sub_relations: Vec<Relation> = relations
                             .iter()
-                            .filter(|set| *set != ot1 && *set != ot2)
+                            .filter(|(_eid, activity, _timestamp, _oid, otype)| {
+                                activities.contains(activity) && union_types.contains(otype)
+                            })
                             .cloned()
                             .collect();
-                        next_candidates.push(union_types);
 
-                        let rel = IdentityRelation {
-                            left: set_to_sorted_vec(ot1),
-                            right: set_to_sorted_vec(ot2),
-                            kind,
-                        };
+                        if let Some(kind) = check_relation(ot1, ot2, &sub_relations) {
+                            if relation_priority(&kind) != priority {
+                                continue;
+                            }
 
-                        let wrapped = OCPTNode::Operator(op);
-                        return OCPTNode::Operator(OCPTOperator::new_identity(
-                            rel,
-                            get_extended_ocpt(wrapped, relations, Some(next_candidates)),
-                        ));
+                            let mut next_candidates: Vec<HashSet<String>> = candidates
+                                .iter()
+                                .filter(|set| *set != ot1 && *set != ot2)
+                                .cloned()
+                                .collect();
+                            next_candidates.push(union_types);
+
+                            let rel = IdentityRelation {
+                                left: set_to_sorted_vec(ot1),
+                                right: set_to_sorted_vec(ot2),
+                                kind,
+                            };
+
+                            let wrapped = OCPTNode::Operator(op);
+                            return OCPTNode::Operator(OCPTOperator::new_identity(
+                                rel,
+                                get_extended_ocpt(wrapped, relations, Some(next_candidates)),
+                            ));
+                        }
                     }
                 }
             }
@@ -128,7 +146,9 @@ mod tests {
     #[test]
     fn extend_order_management_ocpt_and_write_json() {
         let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let input_path = manifest_dir.join("temp").join("ocpt_order_managment_df2.json");
+        let input_path = manifest_dir
+            .join("temp")
+            .join("ocpt_order_managment_df2.json");
         let raw = std::fs::read_to_string(&input_path)
             .expect("failed to read temp/ocpt_order_managment_df2.json");
         let ocpt: OCPT = serde_json::from_str(&raw)
@@ -137,8 +157,7 @@ mod tests {
         let ocel_path = manifest_dir
             .join("temp")
             .join("ocel_v2_126cd774-c16a-4d26-886a-6768add705c9.json");
-        let ocel_raw =
-            std::fs::read_to_string(&ocel_path).expect("failed to read ocel_v2_*.json");
+        let ocel_raw = std::fs::read_to_string(&ocel_path).expect("failed to read ocel_v2_*.json");
         let ocel: OCEL =
             serde_json::from_str(&ocel_raw).expect("failed to parse ocel_v2_*.json as OCEL");
         let ocels = vec![ocel];
@@ -160,13 +179,15 @@ mod tests {
         ];
 
         let extended_root = get_extended_ocpt(ocpt.root, &relations, Some(candidates));
-        let extended = OCPT { root: extended_root };
+        let extended = OCPT {
+            root: extended_root,
+        };
 
         let out_path = manifest_dir
             .join("temp")
             .join("ocpt_order_managment_df2_extended.json");
-        let json = serde_json::to_string_pretty(&extended)
-            .expect("failed to serialize extended OCPT");
+        let json =
+            serde_json::to_string_pretty(&extended).expect("failed to serialize extended OCPT");
         std::fs::write(&out_path, &json).expect("failed to write extended OCPT json");
 
         println!("{}", out_path.display());

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use axum::http::StatusCode;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::io;
 
 /// A trait that defines asynchronous import functionality for types that can be

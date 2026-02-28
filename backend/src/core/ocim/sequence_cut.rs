@@ -150,9 +150,7 @@ mod tests {
         let mut clos = FxHashMap::default();
         clos.insert(
             "ot1".to_string(),
-            [("A".to_string(), "B".to_string())]
-                .into_iter()
-                .collect(),
+            [("A".to_string(), "B".to_string())].into_iter().collect(),
         );
 
         let local = make_local_data(&["A", "B"], &["ot1"], FxHashMap::default(), clos);
@@ -169,7 +167,12 @@ mod tests {
 
     #[test]
     fn invalid_when_partition_not_covering_alphabet() {
-        let local = make_local_data(&["A", "B"], &["ot1"], FxHashMap::default(), FxHashMap::default());
+        let local = make_local_data(
+            &["A", "B"],
+            &["ot1"],
+            FxHashMap::default(),
+            FxHashMap::default(),
+        );
         let global = make_global_data(FxHashMap::default(), FxHashMap::default());
 
         let partitions = vec![vec!["A".to_string()]]; // missing B
@@ -210,9 +213,7 @@ mod tests {
         let mut clos = FxHashMap::default();
         clos.insert(
             "ot1".to_string(),
-            [("B".to_string(), "A".to_string())]
-                .into_iter()
-                .collect(),
+            [("B".to_string(), "A".to_string())].into_iter().collect(),
         );
 
         let local = make_local_data(&["A", "B"], &["ot1"], FxHashMap::default(), clos);

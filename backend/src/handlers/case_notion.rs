@@ -12,6 +12,7 @@ use crate::core::case_notion::traditional::{
 use crate::models::case_notion::GenericCaseNotion;
 use crate::models::ocel::{OCEL, OCELEvent, OCELObject};
 use crate::traits::import_export::ImportableFromPath;
+use async_trait::async_trait;
 use axum::{
     Json,
     extract::{Path, Query},
@@ -21,7 +22,7 @@ use axum::{
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::fs;
 use uuid::Uuid;
 
@@ -67,6 +68,14 @@ struct PersistedCaseNotion {
     #[serde(skip_serializing_if = "Option::is_none")]
     object_type: Option<String>,
     case_notion_file_id: String,
+}
+
+#[async_trait]
+impl ImportableFromPath for PersistedCaseNotion {
+    async fn import_from_path(file_id: &str) -> Result<Self, (StatusCode, String)> {
+        let path = format!("./temp/case_notion_{}.json", file_id);
+        Self::from_json_file(&path).await
+    }
 }
 
 struct LoadedCaseNotion {
@@ -150,37 +159,18 @@ async fn persist_case_ocel_payload(
 async fn load_persisted_case_notion(
     case_notion_file_id: &str,
 ) -> Result<LoadedCaseNotion, (StatusCode, String)> {
-    let path = format!("./temp/case_notion_{}.json", case_notion_file_id);
-    let bytes = match fs::read(&path).await {
+    let persisted = match PersistedCaseNotion::import_from_path(case_notion_file_id).await {
         Ok(data) => data,
-        Err(err) => {
-            eprintln!("read case notion file failed: {err}");
-            return Err(if err.kind() == std::io::ErrorKind::NotFound {
-                (
-                    StatusCode::NOT_FOUND,
-                    format!(
-                        "No stored case notion found for fileId: {}",
-                        case_notion_file_id
-                    ),
-                )
-            } else {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to read stored case notion".to_string(),
-                )
-            });
-        }
-    };
-
-    let persisted: PersistedCaseNotion = match serde_json::from_slice(&bytes) {
-        Ok(data) => data,
-        Err(err) => {
-            eprintln!("parse case notion file failed: {err}");
+        Err((status, _message)) if status == StatusCode::NOT_FOUND => {
             return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Stored case notion is not valid JSON".to_string(),
+                StatusCode::NOT_FOUND,
+                format!(
+                    "No stored case notion found for fileId: {}",
+                    case_notion_file_id
+                ),
             ));
         }
+        Err((status, message)) => return Err((status, message)),
     };
 
     let PersistedCaseNotion {
@@ -322,28 +312,27 @@ pub async fn get_advanced_case_notion(
 
     let context = CaseNotionContext::new(&ocel);
 
-    let evaluation = match &selection {
+    let result = match &selection {
         ObjectTypeSelection::Specific(requested) => {
             best_advanced_case_notion(&context, Some(requested.as_str()))
         }
         ObjectTypeSelection::Default => best_advanced_case_notion(&context, None),
     };
 
-    let evaluation = match evaluation {
+    let (evaluation, selected_arcs_type_level) = match result {
         Some(evaluation) => evaluation,
         None => return not_found_response(CaseKind::Advanced, &selection).into_response(),
     };
 
-    let object_type = match evaluation.object_type.clone() {
-        Some(object_type) => object_type,
-        None => return not_found_response(CaseKind::Advanced, &selection).into_response(),
-    };
+    log::debug!(
+        "Selected arcs for advanced case notion type-level graph: {:?}",
+        selected_arcs_type_level
+    );
 
     let graph_value = build_log_graph_type_level(&ocel);
     let type_level_graph = advanced_case_notion_type_level(
         &graph_value,
-        object_type.as_str(),
-        context.divergence_map(),
+        &selected_arcs_type_level,
     );
 
     let cases: Vec<RawCaseNotionEntry> = evaluation.case_notion.iter().cloned().collect();
@@ -639,5 +628,9 @@ pub async fn get_case_ocel(Path(case_notion_file_id): Path<String>) -> impl Into
         Err(response) => return response.into_response(),
     };
 
-    (StatusCode::OK, Json(json!({ "case_ocels_file_id": case_ocels_file_id }))).into_response()
+    (
+        StatusCode::OK,
+        Json(json!({ "case_ocels_file_id": case_ocels_file_id })),
+    )
+        .into_response()
 }

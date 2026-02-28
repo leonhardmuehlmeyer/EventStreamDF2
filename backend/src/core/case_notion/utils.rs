@@ -1,4 +1,4 @@
-use crate::core::case_notion::main::{CaseNotionEvaluation};
+use crate::core::case_notion::main::CaseNotionEvaluation;
 use crate::core::case_notion::measures::measure_value;
 
 const EPSILON: f64 = 1e-9;

@@ -1,9 +1,9 @@
 use crate::models::dfg::OCDirectlyFollowsGraph;
-use rustc_hash::{FxHashMap, FxHashSet};
 #[cfg(test)]
 use petgraph::algo::floyd_warshall;
 #[cfg(test)]
 use petgraph::graph::DiGraph;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Namespaced helpers for cumulative and closure computations over an [`OCDirectlyFollowsGraph`].
 pub struct OCGraphRelations;
@@ -111,9 +111,7 @@ impl OCGraphRelations {
             // build adjacency list
             let mut adj: FxHashMap<String, Vec<String>> = FxHashMap::default();
             for (from, to) in edges.keys() {
-                adj.entry(from.clone())
-                    .or_default()
-                    .push(to.clone());
+                adj.entry(from.clone()).or_default().push(to.clone());
             }
 
             // Transitive closure using Floyd-Warshall style iteration with self-loops.

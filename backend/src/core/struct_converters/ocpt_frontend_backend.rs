@@ -1,7 +1,9 @@
 //! Convert **[OcptFE]** to **[OCPT]** and viceversa.
 use crate::models::ocpt::{
-    ActivityValue, HierarchyNode, OCPT, OCPTLeaf, OCPTLeafLabel, OCPTNode, OCPTOperator,
-    OCPTOperatorType, ObjectTypeFE as FeObjectType, OcptFE,
+    ActivityValue, HierarchyNode, IdentityRelation, IdentityRelationFE, IdentityRelationKind,
+    IdentityRelationKindFE, OCPT, OCPTLeaf, OCPTLeafLabel, OCPTNode, OCPTOperator,
+    OCPTOperatorType, ObjectTypeFE as FeObjectType, OcptFE, OperatorFE, OperatorValue,
+    OperatorValueData,
 };
 use anyhow::{Result, anyhow};
 use std::collections::{HashMap, HashSet};
@@ -46,15 +48,32 @@ pub fn backend_to_frontend(ocpt: &OCPT) -> OcptFE {
 
 fn frontend_node_to_backend(node: &HierarchyNode) -> Result<OCPTNode> {
     match node {
-        HierarchyNode::Operator { value, children } => {
-            let op_type = parse_operator(value)?;
-            let mut op = OCPTOperator::new(op_type);
-            op.children = children
-                .iter()
-                .map(frontend_node_to_backend)
-                .collect::<Result<Vec<_>>>()?;
-            Ok(OCPTNode::Operator(op))
-        }
+        HierarchyNode::Operator { value, children } => match value {
+            OperatorValue::Operator(op) => {
+                let op_type = operator_fe_to_backend(&op.operator);
+                let mut op_node = OCPTOperator::new(op_type);
+                op_node.children = children
+                    .iter()
+                    .map(frontend_node_to_backend)
+                    .collect::<Result<Vec<_>>>()?;
+                let mut node = OCPTNode::Operator(op_node);
+
+                if let Some(identities) = &op.identity {
+                    node = wrap_with_identities(node, identities)?;
+                }
+
+                Ok(node)
+            }
+            OperatorValue::Legacy(value) => {
+                let op_type = parse_operator(value)?;
+                let mut op = OCPTOperator::new(op_type);
+                op.children = children
+                    .iter()
+                    .map(frontend_node_to_backend)
+                    .collect::<Result<Vec<_>>>()?;
+                Ok(OCPTNode::Operator(op))
+            }
+        },
         HierarchyNode::Activity { value } => {
             let leaf = frontend_activity_to_leaf(value);
             Ok(OCPTNode::Leaf(leaf))
@@ -82,6 +101,11 @@ fn parse_operator(s: &str) -> Result<OCPTOperatorType> {
             // Optional: parse count after "loop:" if you want to support it
             // let n = v[5..].parse::<u32>().ok();
             OCPTOperatorType::Loop(None)
+        }
+        "identity" => {
+            return Err(anyhow!(
+                "Legacy identity operator requires identity data; use value.operator with identity list on the operator"
+            ));
         }
         other => return Err(anyhow!("Unknown operator: {other}")),
     })
@@ -154,24 +178,39 @@ fn frontend_activity_to_leaf(v: &ActivityValue) -> OCPTLeaf {
 ///
 /// The converted frontend [HierarchyNode]  
 fn backend_node_to_frontend(node: &OCPTNode) -> HierarchyNode {
-    match node {
-        OCPTNode::Operator(op) => match &op.operator_type {
-            OCPTOperatorType::IdentityRelation(_) => op
-                .children
-                .first()
-                .map(backend_node_to_frontend)
-                .unwrap_or_else(|| HierarchyNode::Operator {
-                    value: "identity".to_string(),
-                    children: vec![],
-                }),
-            _ => HierarchyNode::Operator {
-                value: stringify_operator(&op.operator_type),
+    let (identities, inner) = split_identity_chain(node);
+    match inner {
+        OCPTNode::Operator(op) => {
+            let value = OperatorValue::Operator(OperatorValueData {
+                operator: operator_backend_to_fe(&op.operator_type),
+                identity: if identities.is_empty() {
+                    None
+                } else {
+                    Some(identities)
+                },
+            });
+            HierarchyNode::Operator {
+                value,
                 children: op.children.iter().map(backend_node_to_frontend).collect(),
-            },
-        },
+            }
+        }
         OCPTNode::Leaf(leaf) => {
-            let value = backend_leaf_to_activity_value(leaf);
-            HierarchyNode::Activity { value }
+            let leaf_node = HierarchyNode::Activity {
+                value: backend_leaf_to_activity_value(leaf),
+            };
+            if identities.is_empty() {
+                leaf_node
+            } else {
+                // Fallback: preserve identities by wrapping the leaf in a unary sequence.
+                let value = OperatorValue::Operator(OperatorValueData {
+                    operator: OperatorFE::Sequence,
+                    identity: Some(identities),
+                });
+                HierarchyNode::Operator {
+                    value,
+                    children: vec![leaf_node],
+                }
+            }
         }
     }
 }
@@ -183,13 +222,81 @@ fn backend_node_to_frontend(node: &OCPTNode) -> HierarchyNode {
 /// - `ExclusiveChoice` -> `"exclusiveChoice"`
 /// - `Concurrency` -> `"parallel"`
 /// - `Loop(_cnt)` -> `"loop"` (ignoring the count parameter in the frontend)
-fn stringify_operator(op: &OCPTOperatorType) -> String {
+fn operator_backend_to_fe(op: &OCPTOperatorType) -> OperatorFE {
     match op {
-        OCPTOperatorType::Sequence => "sequence".to_string(),
-        OCPTOperatorType::ExclusiveChoice => "xor".to_string(),
-        OCPTOperatorType::Concurrency => "parallel".to_string(),
-        OCPTOperatorType::Loop(_cnt) => "loop".to_string(), // ignore parameter in FE
-        OCPTOperatorType::IdentityRelation(_) => "identity".to_string(),
+        OCPTOperatorType::Sequence => OperatorFE::Sequence,
+        OCPTOperatorType::ExclusiveChoice => OperatorFE::Xor,
+        OCPTOperatorType::Concurrency => OperatorFE::Parallel,
+        OCPTOperatorType::Loop(_cnt) => OperatorFE::Loop, // ignore parameter in FE
+        OCPTOperatorType::IdentityRelation(_) => unreachable!("identity handled separately"),
+    }
+}
+
+fn operator_fe_to_backend(op: &OperatorFE) -> OCPTOperatorType {
+    match op {
+        OperatorFE::Sequence => OCPTOperatorType::Sequence,
+        OperatorFE::Xor => OCPTOperatorType::ExclusiveChoice,
+        OperatorFE::Parallel => OCPTOperatorType::Concurrency,
+        OperatorFE::Loop => OCPTOperatorType::Loop(None),
+    }
+}
+
+fn wrap_with_identities(mut node: OCPTNode, identities: &[IdentityRelationFE]) -> Result<OCPTNode> {
+    // Identity list is ordered outermost -> innermost. Wrap in reverse.
+    for rel in identities.iter().rev() {
+        let rel_backend = IdentityRelation {
+            left: rel.left.clone(),
+            right: rel.right.clone(),
+            kind: fe_identity_kind_to_backend(&rel.kind),
+        };
+        node = OCPTNode::Operator(OCPTOperator::new_identity(rel_backend, node));
+    }
+    Ok(node)
+}
+
+fn split_identity_chain(node: &OCPTNode) -> (Vec<IdentityRelationFE>, &OCPTNode) {
+    let mut identities: Vec<IdentityRelationFE> = Vec::new();
+    let mut current = node;
+
+    loop {
+        match current {
+            OCPTNode::Operator(op) => match &op.operator_type {
+                OCPTOperatorType::IdentityRelation(rel) => {
+                    identities.push(IdentityRelationFE {
+                        left: rel.left.clone(),
+                        right: rel.right.clone(),
+                        kind: backend_identity_kind_to_fe(&rel.kind),
+                    });
+                    if let Some(child) = op.children.first() {
+                        current = child;
+                        continue;
+                    }
+                    break;
+                }
+                _ => break,
+            },
+            _ => break,
+        }
+    }
+
+    (identities, current)
+}
+
+fn fe_identity_kind_to_backend(kind: &IdentityRelationKindFE) -> IdentityRelationKind {
+    match kind {
+        IdentityRelationKindFE::Sync => IdentityRelationKind::Sync,
+        IdentityRelationKindFE::ImpConcurrent => IdentityRelationKind::ImpConcurrent,
+        IdentityRelationKindFE::ImpOrdered => IdentityRelationKind::ImpOrdered,
+    }
+}
+
+fn backend_identity_kind_to_fe(kind: &IdentityRelationKind) -> IdentityRelationKindFE {
+    match kind {
+        IdentityRelationKind::Sync => IdentityRelationKindFE::Sync,
+        IdentityRelationKind::ImpConcurrent => IdentityRelationKindFE::ImpConcurrent,
+        IdentityRelationKind::ImpOrdered => IdentityRelationKindFE::ImpOrdered,
+        // Legacy FE supports only three identity kinds; collapse newer BE variants.
+        _ => IdentityRelationKindFE::Sync,
     }
 }
 
@@ -299,6 +406,81 @@ fn collect_all_ots_from_node(node: &OCPTNode, acc: &mut HashSet<String>) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_identity_roundtrip_frontend_backend() {
+        use crate::core::struct_converters::ocpt_frontend_backend::{
+            backend_to_frontend, frontend_to_backend,
+        };
+        use crate::models::ocpt::{
+            ActivityValue, HierarchyNode, IdentityRelationFE, IdentityRelationKindFE, OcptFE,
+            OperatorFE, OperatorValue, OperatorValueData,
+        };
+
+        let fe = OcptFE {
+            ots: vec!["orders".into(), "packages".into()],
+            hierarchy: HierarchyNode::Operator {
+                value: OperatorValue::Operator(OperatorValueData {
+                    operator: OperatorFE::Sequence,
+                    identity: Some(vec![IdentityRelationFE {
+                        left: vec!["orders".into()],
+                        right: vec!["packages".into()],
+                        kind: IdentityRelationKindFE::Sync,
+                    }]),
+                }),
+                children: vec![HierarchyNode::Activity {
+                    value: ActivityValue {
+                        isSilent: Some(false),
+                        activity: "Pay".to_string(),
+                        ots: vec![],
+                    },
+                }],
+            },
+        };
+
+        let backend = frontend_to_backend(fe).expect("frontend->backend with identity failed");
+        let roundtrip = backend_to_frontend(&backend);
+
+        match roundtrip.hierarchy {
+            HierarchyNode::Operator { value, children } => {
+                match value {
+                    OperatorValue::Operator(OperatorValueData { operator, identity }) => {
+                        assert!(matches!(operator, OperatorFE::Sequence));
+                        let list = identity.expect("identity list missing after roundtrip");
+                        assert_eq!(list.len(), 1);
+                        assert_eq!(list[0].left, vec!["orders"]);
+                        assert_eq!(list[0].right, vec!["packages"]);
+                        assert!(matches!(list[0].kind, IdentityRelationKindFE::Sync));
+                    }
+                    other => panic!("expected identity operator, got {:?}", other),
+                }
+                assert_eq!(children.len(), 1);
+            }
+            _ => panic!("expected identity operator at root"),
+        }
+    }
+
+    #[test]
+    fn test_identity_requires_data() {
+        use crate::core::struct_converters::ocpt_frontend_backend::frontend_to_backend;
+        use crate::models::ocpt::{ActivityValue, HierarchyNode, OcptFE, OperatorValue};
+
+        let fe = OcptFE {
+            ots: vec![],
+            hierarchy: HierarchyNode::Operator {
+                value: OperatorValue::Legacy("identity".to_string()),
+                children: vec![HierarchyNode::Activity {
+                    value: ActivityValue {
+                        isSilent: Some(false),
+                        activity: "Pay".to_string(),
+                        ots: vec![],
+                    },
+                }],
+            },
+        };
+
+        assert!(frontend_to_backend(fe).is_err());
+    }
+
     #[tokio::test]
     async fn test_convert_and_store_ocpt_123_roundtrip() {
         use crate::core::struct_converters::ocpt_frontend_backend::{

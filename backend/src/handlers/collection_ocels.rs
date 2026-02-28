@@ -1,36 +1,27 @@
+use crate::models::ocel_collection::OCELCollection;
+use crate::traits::import_export::ImportableFromPath;
 use axum::{Json, extract::Path, http::StatusCode, response::IntoResponse};
 use serde_json::Value;
-use std::path::Path as FsPath;
-use tokio::fs;
 
 pub async fn get_collection_ocels(Path(file_id): Path<String>) -> impl IntoResponse {
-    let path = format!("./temp/case_ocels_{}.json", file_id);
-
-    if !FsPath::new(&path).exists() {
-        let msg = format!("Case OCEL collection not found for fileId: {}", file_id);
-        eprintln!("{}", msg);
-        return (StatusCode::NOT_FOUND, msg).into_response();
-    }
-
-    match fs::read_to_string(&path).await {
-        Ok(content) => match serde_json::from_str::<Value>(&content) {
-            Ok(value) => (StatusCode::OK, Json(value)).into_response(),
-            Err(err) => {
-                eprintln!("Failed to parse stored case OCEL collection {}: {}", path, err);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Failed to parse stored case OCEL collection".to_string(),
-                )
-                    .into_response()
-            }
-        },
-        Err(err) => {
-            eprintln!("Failed to read stored case OCEL collection {}: {}", path, err);
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Failed to read stored case OCEL collection".to_string(),
-            )
-                .into_response()
+    match OCELCollection::import_from_path(&file_id).await {
+        Ok(collection) => {
+            let mut payload_map: serde_json::Map<String, Value> =
+                collection.attributes.into_iter().collect();
+            let case_ocels_value = match serde_json::to_value(collection.ocels) {
+                Ok(value) => value,
+                Err(err) => {
+                    eprintln!("Failed to serialize stored case OCEL collection: {}", err);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to serialize stored case OCEL collection".to_string(),
+                    )
+                        .into_response();
+                }
+            };
+            payload_map.insert("case_ocels".to_string(), case_ocels_value);
+            (StatusCode::OK, Json(Value::Object(payload_map))).into_response()
         }
+        Err((status, message)) => (status, message).into_response(),
     }
 }

@@ -8,12 +8,13 @@ use std::collections::HashSet;
 use tokio::fs;
 use uuid::Uuid;
 
+#[allow(unused_imports)]
+// Re-exported for downstream API consumers; not referenced in this module yet.
+pub use process_mining::core::process_models::object_centric::ocpt::{EventType, ObjectType};
 pub use process_mining::core::process_models::object_centric::ocpt::{
     IdentityRelation, IdentityRelationKind, OCPT, OCPTLeaf, OCPTLeafLabel, OCPTNode, OCPTOperator,
     OCPTOperatorType,
 };
-#[allow(unused_imports)] // Re-exported for downstream API consumers; not referenced in this module yet.
-pub use process_mining::core::process_models::object_centric::ocpt::{EventType, ObjectType};
 
 pub trait OCPTPretty {
     fn pretty(&self) -> String;
@@ -81,7 +82,7 @@ pub struct OcptFE {
 #[serde(untagged)]
 pub enum HierarchyNode {
     Operator {
-        value: String,
+        value: OperatorValue,
         children: Vec<HierarchyNode>,
     },
     Activity {
@@ -102,6 +103,44 @@ pub struct ObjectTypeFE {
     pub ot: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exhibits: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum OperatorValue {
+    Legacy(String),
+    Operator(OperatorValueData),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperatorValueData {
+    pub operator: OperatorFE,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identity: Option<Vec<IdentityRelationFE>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OperatorFE {
+    Sequence,
+    Xor,
+    Parallel,
+    Loop,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IdentityRelationFE {
+    pub left: Vec<String>,
+    pub right: Vec<String>,
+    pub kind: IdentityRelationKindFE,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum IdentityRelationKindFE {
+    Sync,
+    ImpConcurrent,
+    ImpOrdered,
 }
 
 ////////// sid ///////////////////////////
@@ -126,6 +165,17 @@ pub type ProcessForest = Vec<TreeNode>;
 /// ```
 #[async_trait]
 impl ImportableFromPath for OCPT {
+    async fn import_from_path(file_id: &str) -> Result<Self, (StatusCode, String)> {
+        let path = format!("./temp/ocpt_{}.json", file_id);
+        Self::from_json_file(&path).await
+    }
+}
+
+/// Implementation of [`ImportableFromPath`] for frontend OCPT shape [`OcptFE`].
+///
+/// This is mainly used when intermediate frontend OCPT artifacts are read from disk.
+#[async_trait]
+impl ImportableFromPath for OcptFE {
     async fn import_from_path(file_id: &str) -> Result<Self, (StatusCode, String)> {
         let path = format!("./temp/ocpt_{}.json", file_id);
         Self::from_json_file(&path).await

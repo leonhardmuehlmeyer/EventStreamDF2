@@ -1,86 +1,52 @@
-use axum::{Json, extract::Path as AxumPath, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::Path as AxumPath, response::IntoResponse};
 use serde_json::json;
-use tokio::fs as tokio_fs;
 
+use crate::models::ocel::{IndexLinkedOCEL, OCEL};
+use crate::models::ocpt::OCPT as BackendOCPT;
+use crate::traits::import_export::ImportableFromPath;
+use process_mining::conformance::object_centric::footprint_based_ocpt::{
+    FootprintConformance, compute_footprint_conformance, compute_footprint_conformance_ocpt_vs_ocpt,
+};
 use process_mining::conformance::object_centric::object_centric_language_abstraction::{
     OCLanguageAbstraction, compute_fitness_precision,
 };
-use crate::models::ocel::{IndexLinkedOCEL, OCEL};
 
-// OCPT backend + (optionally) FE type & converter if needed
-use crate::core::struct_converters::ocpt_frontend_backend::frontend_to_backend;
-use crate::models::ocpt::{OCPT as BackendOCPT, OcptFE as FrontendOcpt};
-
-/// Helper: Load an OCPT from disk, accepting either FE or BE JSON.
-/// Always returns the **backend** OCPT.
-async fn load_backend_ocpt(path: &str) -> Result<BackendOCPT, String> {
-    let content = tokio_fs::read_to_string(path)
-        .await
-        .map_err(|e| format!("read {}: {e}", path))?;
-
-    // Try backend first
-    let backend_ocpt = if let Ok(be) = serde_json::from_str::<BackendOCPT>(&content) {
-        be
-    } else {
-        // Try frontend -> convert to backend
-        let fe = serde_json::from_str::<FrontendOcpt>(&content)
-            .map_err(|e| format!("parse OCPT (backend or frontend) failed at {}: {e}", path))?;
-
-        frontend_to_backend(fe)
-            .map_err(|e| format!("frontend->backend OCPT conversion failed at {}: {e}", path))?
-    };
-
-    Ok(backend_ocpt)
+fn conformance_payload(
+    fitness: f64,
+    precision: f64,
+    footprint: &FootprintConformance,
+) -> serde_json::Value {
+    json!({
+        "fitness": fitness,
+        "precision": precision,
+        "footprint": {
+            "control_fitness": footprint.control_fitness,
+            "control_precision": footprint.control_precision,
+            "multiplicity_fitness": footprint.multiplicity_fitness,
+            "multiplicity_precision": footprint.multiplicity_precision,
+            "identity_fitness": footprint.identity_fitness,
+            "identity_precision": footprint.identity_precision,
+            "overall_fitness": footprint.overall_fitness,
+            "overall_precision": footprint.overall_precision
+        }
+    })
 }
 
 /// GET /v1/conformance/ocpt/{ocpt_id}/ocel/{ocel_id}"
-/// -> loads ./temp/ocpt_{ocpt_id}.json and (./temp/ocel_v2_{ocel_id}.json || ./temp/ocel_{ocel_id}.json)
+/// -> loads ./temp/ocpt_{ocpt_id}.json and ./temp/ocel_v2_{ocel_id}.json
 pub async fn get_conformance_ocpt_ocel(
     AxumPath((ocpt_id, ocel_id)): AxumPath<(String, String)>,
 ) -> impl IntoResponse {
-    // OCPT path (model)
-    let ocpt_path = format!("./temp/ocpt_{}.json", ocpt_id);
-
-    // OCEL path (log): prefer v2, fall back to plain
-    let ocel_v2_path = format!("./temp/ocel_v2_{}.json", ocel_id);
-    let ocel_plain_path = format!("./temp/ocel_{}.json", ocel_id);
-
-    // --- Load OCPT (FE or BE) ---
-    let ocpt_backend = match load_backend_ocpt(&ocpt_path).await {
-        Ok(x) => x,
-        Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+    // --- Load OCPT ---
+    let ocpt_backend = match BackendOCPT::import_from_path(&ocpt_id).await {
+        Ok(ocpt) => ocpt,
+        Err((status, message)) => return (status, message).into_response(),
     };
 
-    // --- Load OCEL (prefer v2) ---
-    let ocel_data = match tokio_fs::read_to_string(&ocel_v2_path).await {
-        Ok(s) => s,
-        Err(_) => match tokio_fs::read_to_string(&ocel_plain_path).await {
-            Ok(s) => s,
-            Err(e2) => {
-                return (
-                    StatusCode::NOT_FOUND,
-                    format!(
-                        "OCEL not found. Tried:\n  {}\n  {}\nError: {}",
-                        ocel_v2_path, ocel_plain_path, e2
-                    ),
-                )
-                    .into_response();
-            }
-        },
-    };
-
-    let ocel_struct: OCEL = match serde_json::from_str(&ocel_data) {
+    // --- Load OCEL ---
+    let ocel_struct = match OCEL::import_from_path(&ocel_id).await {
         Ok(o) => o,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                format!(
-                    "Failed to parse OCEL JSON ({} or {}): {}",
-                    ocel_v2_path, ocel_plain_path, e
-                ),
-            )
-                .into_response();
-        }
+        Err((status, message)) => return (status, message).into_response(),
     };
 
     // --- Conformance ---
@@ -88,12 +54,25 @@ pub async fn get_conformance_ocpt_ocel(
     let model_abs = OCLanguageAbstraction::create_from_oc_process_tree(&ocpt_backend);
     let log_abs = OCLanguageAbstraction::create_from_ocel(&locel);
     let (fitness, precision) = compute_fitness_precision(&log_abs, &model_abs);
+    let footprint = compute_footprint_conformance(&locel, &ocpt_backend);
 
-    Json(json!({
-        "fitness": fitness,
-        "precision": precision
-    }))
-    .into_response()
+    println!(
+        "[conformance ocpt_ocel] ocpt_id={} ocel_id={} fitness={} precision={} footprint={{control_fitness={} control_precision={} multiplicity_fitness={} multiplicity_precision={} identity_fitness={} identity_precision={} overall_fitness={} overall_precision={}}}",
+        ocpt_id,
+        ocel_id,
+        fitness,
+        precision,
+        footprint.control_fitness,
+        footprint.control_precision,
+        footprint.multiplicity_fitness,
+        footprint.multiplicity_precision,
+        footprint.identity_fitness,
+        footprint.identity_precision,
+        footprint.overall_fitness,
+        footprint.overall_precision
+    );
+
+    Json(conformance_payload(fitness, precision, &footprint)).into_response()
 }
 
 /// GET /v1/conformance/ocpt_1/{ocpt_id_1}/ocpt_2/{ocpt_id_2}
@@ -101,25 +80,118 @@ pub async fn get_conformance_ocpt_ocel(
 pub async fn get_conformance_ocpt_ocpt(
     AxumPath((ocpt_id_1, ocpt_id_2)): AxumPath<(String, String)>,
 ) -> impl IntoResponse {
-    let ocpt_1_path = format!("./temp/ocpt_{}.json", ocpt_id_1);
-    let ocpt_2_path = format!("./temp/ocpt_{}.json", ocpt_id_2);
-
-    let ocpt_1 = match load_backend_ocpt(&ocpt_1_path).await {
-        Ok(x) => x,
-        Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+    let ocpt_1 = match BackendOCPT::import_from_path(&ocpt_id_1).await {
+        Ok(ocpt) => ocpt,
+        Err((status, message)) => return (status, message).into_response(),
     };
-    let ocpt_2 = match load_backend_ocpt(&ocpt_2_path).await {
-        Ok(x) => x,
-        Err(e) => return (StatusCode::BAD_REQUEST, e).into_response(),
+    let ocpt_2 = match BackendOCPT::import_from_path(&ocpt_id_2).await {
+        Ok(ocpt) => ocpt,
+        Err((status, message)) => return (status, message).into_response(),
     };
 
     let a_abs = OCLanguageAbstraction::create_from_oc_process_tree(&ocpt_1);
     let b_abs = OCLanguageAbstraction::create_from_oc_process_tree(&ocpt_2);
     let (fitness, precision) = compute_fitness_precision(&a_abs, &b_abs);
+    let footprint = compute_footprint_conformance_ocpt_vs_ocpt(&ocpt_1, &ocpt_2);
 
-    Json(json!({
-        "fitness": fitness,
-        "precision": precision
-    }))
-    .into_response()
+    println!(
+        "[conformance ocpt_ocpt] ocpt_id_1={} ocpt_id_2={} fitness={} precision={} footprint={{control_fitness={} control_precision={} multiplicity_fitness={} multiplicity_precision={} identity_fitness={} identity_precision={} overall_fitness={} overall_precision={}}}",
+        ocpt_id_1,
+        ocpt_id_2,
+        fitness,
+        precision,
+        footprint.control_fitness,
+        footprint.control_precision,
+        footprint.multiplicity_fitness,
+        footprint.multiplicity_precision,
+        footprint.identity_fitness,
+        footprint.identity_precision,
+        footprint.overall_fitness,
+        footprint.overall_precision
+    );
+
+    Json(conformance_payload(fitness, precision, &footprint)).into_response()
+}
+
+/// GET /v1/conformance/extended_ocpt/{extended_ocpt_id}/ocel/{ocel_id}
+/// -> loads ./temp/extended_ocpt_{extended_ocpt_id}.json and ./temp/ocel_v2_{ocel_id}.json
+pub async fn get_conformance_extended_ocpt_ocel(
+    AxumPath((extended_ocpt_id, ocel_id)): AxumPath<(String, String)>,
+) -> impl IntoResponse {
+    let extended_ocpt_path = format!("./temp/extended_ocpt_{}.json", extended_ocpt_id);
+
+    let extended_ocpt = match BackendOCPT::from_json_file(&extended_ocpt_path).await {
+        Ok(ocpt) => ocpt,
+        Err((status, message)) => return (status, message).into_response(),
+    };
+
+    let ocel_struct = match OCEL::import_from_path(&ocel_id).await {
+        Ok(o) => o,
+        Err((status, message)) => return (status, message).into_response(),
+    };
+
+    let locel: IndexLinkedOCEL = IndexLinkedOCEL::from_ocel(ocel_struct);
+    let model_abs = OCLanguageAbstraction::create_from_oc_process_tree(&extended_ocpt);
+    let log_abs = OCLanguageAbstraction::create_from_ocel(&locel);
+    let (fitness, precision) = compute_fitness_precision(&log_abs, &model_abs);
+    let footprint = compute_footprint_conformance(&locel, &extended_ocpt);
+
+    println!(
+        "[conformance extended_ocpt_ocel] extended_ocpt_id={} ocel_id={} fitness={} precision={} footprint={{control_fitness={} control_precision={} multiplicity_fitness={} multiplicity_precision={} identity_fitness={} identity_precision={} overall_fitness={} overall_precision={}}}",
+        extended_ocpt_id,
+        ocel_id,
+        fitness,
+        precision,
+        footprint.control_fitness,
+        footprint.control_precision,
+        footprint.multiplicity_fitness,
+        footprint.multiplicity_precision,
+        footprint.identity_fitness,
+        footprint.identity_precision,
+        footprint.overall_fitness,
+        footprint.overall_precision
+    );
+
+    Json(conformance_payload(fitness, precision, &footprint)).into_response()
+}
+
+/// GET /v1/conformance/extended_ocpt_1/{extended_ocpt_id_1}/extended_ocpt_2/{extended_ocpt_id_2}
+/// -> loads ./temp/extended_ocpt_{extended_ocpt_id_1}.json and ./temp/extended_ocpt_{extended_ocpt_id_2}.json
+pub async fn get_conformance_extended_ocpt_extended_ocpt(
+    AxumPath((extended_ocpt_id_1, extended_ocpt_id_2)): AxumPath<(String, String)>,
+) -> impl IntoResponse {
+    let extended_ocpt_1_path = format!("./temp/extended_ocpt_{}.json", extended_ocpt_id_1);
+    let extended_ocpt_2_path = format!("./temp/extended_ocpt_{}.json", extended_ocpt_id_2);
+
+    let extended_ocpt_1 = match BackendOCPT::from_json_file(&extended_ocpt_1_path).await {
+        Ok(ocpt) => ocpt,
+        Err((status, message)) => return (status, message).into_response(),
+    };
+    let extended_ocpt_2 = match BackendOCPT::from_json_file(&extended_ocpt_2_path).await {
+        Ok(ocpt) => ocpt,
+        Err((status, message)) => return (status, message).into_response(),
+    };
+
+    let a_abs = OCLanguageAbstraction::create_from_oc_process_tree(&extended_ocpt_1);
+    let b_abs = OCLanguageAbstraction::create_from_oc_process_tree(&extended_ocpt_2);
+    let (fitness, precision) = compute_fitness_precision(&a_abs, &b_abs);
+    let footprint = compute_footprint_conformance_ocpt_vs_ocpt(&extended_ocpt_1, &extended_ocpt_2);
+
+    println!(
+        "[conformance extended_ocpt_extended_ocpt] extended_ocpt_id_1={} extended_ocpt_id_2={} fitness={} precision={} footprint={{control_fitness={} control_precision={} multiplicity_fitness={} multiplicity_precision={} identity_fitness={} identity_precision={} overall_fitness={} overall_precision={}}}",
+        extended_ocpt_id_1,
+        extended_ocpt_id_2,
+        fitness,
+        precision,
+        footprint.control_fitness,
+        footprint.control_precision,
+        footprint.multiplicity_fitness,
+        footprint.multiplicity_precision,
+        footprint.identity_fitness,
+        footprint.identity_precision,
+        footprint.overall_fitness,
+        footprint.overall_precision
+    );
+
+    Json(conformance_payload(fitness, precision, &footprint)).into_response()
 }

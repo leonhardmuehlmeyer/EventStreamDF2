@@ -54,10 +54,9 @@ pub fn is_exclusive_fallthrough_valid(
             context.extend(partition_list[j].iter().cloned());
 
             let has_non_divergent = partition_list[i].iter().any(|a| {
-                partition_list[j].iter().any(|b| {
-                    !get_non_divergent_types(a, b, &context, global_data)
-                        .is_empty()
-                })
+                partition_list[j]
+                    .iter()
+                    .any(|b| !get_non_divergent_types(a, b, &context, global_data).is_empty())
             });
             if !has_non_divergent {
                 return false;
@@ -117,10 +116,9 @@ pub fn is_sequence_fallthrough_valid(
             context.extend(partition_list[j].iter().cloned());
 
             let has_non_divergent = partition_list[i].iter().any(|a| {
-                partition_list[j].iter().any(|b| {
-                    !get_non_divergent_types(a, b, &context, global_data)
-                        .is_empty()
-                })
+                partition_list[j]
+                    .iter()
+                    .any(|b| !get_non_divergent_types(a, b, &context, global_data).is_empty())
             });
             if !has_non_divergent {
                 return false;
@@ -151,11 +149,7 @@ pub fn is_loop_fallthrough_valid(
     let body = &partition_list[0];
     let redo = &partition_list[1];
 
-    let context: Vec<String> = body
-        .iter()
-        .chain(redo.iter())
-        .cloned()
-        .collect();
+    let context: Vec<String> = body.iter().chain(redo.iter()).cloned().collect();
 
     let mut relevant_types: FxHashSet<String> = FxHashSet::default();
     for a in body {

@@ -1,11 +1,11 @@
 // Handler layer only uses a subset of these helpers; keep the rest available without warnings.
 #![allow(dead_code)]
-use crate::core::case_notion::{
-    measures::{average_score, f1_from_measures, measure_value},
-};
-use crate::models::ocel::{OCELUtils,build_event_identifiers, build_object_identifiers,map_object_id_to_type};
-use process_mining::OCEL;
+use crate::core::case_notion::measures::{average_score, f1_from_measures, measure_value};
 use crate::models::ocel::{OCELEvent, OCELObject, OCELType};
+use crate::models::ocel::{
+    OCELUtils, build_event_identifiers, build_object_identifiers, map_object_id_to_type,
+};
+use process_mining::OCEL;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;

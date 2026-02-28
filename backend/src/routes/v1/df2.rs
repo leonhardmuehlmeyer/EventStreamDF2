@@ -1,8 +1,5 @@
 use crate::handlers::df2::apply_df2;
-use axum::{
-    Router,
-    routing::get,
-};
+use axum::{Router, routing::get};
 
 pub fn router() -> Router {
     Router::new().route("/df2/{file_id}", get(apply_df2))

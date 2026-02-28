@@ -1,6 +1,6 @@
 use process_mining::OCEL;
-use serde::Deserialize;
 use rustc_hash::FxHashSet;
+use serde::Deserialize;
 
 /// JSON structs for deserializing the user selection
 #[derive(Deserialize)]
@@ -117,7 +117,7 @@ pub fn filter_ocel_histograms(log: &OCEL, filters_json: &str) -> Vec<OCEL> {
             // Event passed all filters in this selection
             filtered_events.push(event.clone());
             // if event type is not in the set, add it
-            if !filtered_event_types.contains(&event.event_type)  {
+            if !filtered_event_types.contains(&event.event_type) {
                 filtered_event_types.insert(event.event_type.clone());
             }
         }
@@ -139,21 +139,24 @@ pub fn filter_ocel_histograms(log: &OCEL, filters_json: &str) -> Vec<OCEL> {
             .collect();
 
         let mut filtered_object_types = FxHashSet::default();
-        
+
         for obj in &filtered_objects {
             if !filtered_object_types.contains(&obj.object_type) {
                 filtered_object_types.insert(obj.object_type.clone());
             }
         }
 
-
         // 5. Create filtered OCEL
         let filtered_ocel = OCEL {
-            event_types: log.event_types.iter()
+            event_types: log
+                .event_types
+                .iter()
                 .filter(|et| filtered_event_types.contains(&et.name))
                 .cloned()
                 .collect(),
-            object_types: log.object_types.iter()
+            object_types: log
+                .object_types
+                .iter()
                 .filter(|ot| filtered_object_types.contains(&ot.name))
                 .cloned()
                 .collect(),
