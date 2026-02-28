@@ -292,7 +292,7 @@ pub fn best_advanced_case_notion(
                 evaluate_advanced_case_notion_for_object_type(context, object_type)
             })
             .reduce_with(|best, candidate| {
-                if is_better_evaluation(&candidate, Some(&best)) {
+                if is_better_evaluation(&candidate.0, Some(&best.0)) {
                     candidate
                 } else {
                     best
