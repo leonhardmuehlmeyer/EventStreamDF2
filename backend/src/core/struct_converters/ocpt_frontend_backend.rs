@@ -295,6 +295,8 @@ fn backend_identity_kind_to_fe(kind: &IdentityRelationKind) -> IdentityRelationK
         IdentityRelationKind::Sync => IdentityRelationKindFE::Sync,
         IdentityRelationKind::ImpConcurrent => IdentityRelationKindFE::ImpConcurrent,
         IdentityRelationKind::ImpOrdered => IdentityRelationKindFE::ImpOrdered,
+        // Legacy FE supports only three identity kinds; collapse newer BE variants.
+        _ => IdentityRelationKindFE::Sync,
     }
 }
 

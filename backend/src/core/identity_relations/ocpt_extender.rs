@@ -53,6 +53,8 @@ fn relation_priority(kind: &IdentityRelationKind) -> usize {
         IdentityRelationKind::Sync => 0,
         IdentityRelationKind::ImpConcurrent => 1,
         IdentityRelationKind::ImpOrdered => 2,
+        // Legacy priority buckets: treat newer relation kinds as lowest-priority implication.
+        _ => 2,
     }
 }
 
