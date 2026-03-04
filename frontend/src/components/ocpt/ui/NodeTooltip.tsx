@@ -45,7 +45,10 @@ const OtLabel = ({ ot, coloring }: { ot: string; coloring: any }) => (
 );
 
 const IdentityRelationItem = ({ relation, coloring }: { relation: IdentityRelation; coloring: any }) => {
-    const kindLabel = relation.kind === 'sync' ? 'Synchronous' : 'Implicitly Concurrent';
+    const kindLabel =
+        relation.kind === 'sync' ? 'Synchronous' :
+        relation.kind === 'impConcurrent' ? 'Implicitly Concurrent' :
+        'Temporal Implication';
     return (
         <div className="py-1">
             <div className="text-xs text-gray-400 mb-0.5">{kindLabel}</div>
@@ -56,7 +59,9 @@ const IdentityRelationItem = ({ relation, coloring }: { relation: IdentityRelati
                         <OtLabel ot={ot} coloring={coloring} />
                     </span>
                 ))}
-                <span className="text-gray-400">{relation.kind === 'sync' ? '=' : '||'}</span>
+                <span className="text-gray-400">
+                    {relation.kind === 'sync' ? '=' : relation.kind === 'impConcurrent' ? '⇒‖' : '⇒→'}
+                </span>
                 {relation.right.map((ot, i) => (
                     <span key={i} className="inline-flex items-center">
                         {i > 0 && <span className="text-gray-400 mr-1">,</span>}

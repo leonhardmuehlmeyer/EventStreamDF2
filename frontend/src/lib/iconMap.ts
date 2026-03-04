@@ -65,4 +65,8 @@ export const ASSET_TYPE_VISUALS: Record<AssetType, AssetTypeVisual> = {
         icon: FileStack,
         color: 'text-green-500',
     },
+    identityOcptAsset: {
+        icon: FileText,
+        color: 'text-amber-500',
+    },
 };

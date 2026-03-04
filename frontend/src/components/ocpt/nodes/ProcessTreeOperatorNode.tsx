@@ -142,10 +142,12 @@ const ProcessTreeOperatorNode: React.FC<ProcessTreeNodeProps> = ({
                 const baseX = -width / 2 - 2;
                 const baseY = height / 2 - iconSize + 2;
                 const offsetY = i * (iconSize + 2);
+                const symbol = kind === 'sync' ? '=' : kind === 'impConcurrent' ? '⇒‖' : '⇒→';
+                const rectWidth = kind === 'sync' ? iconSize : iconSize + 10;
                 return (
                     <g key={kind} transform={`translate(${baseX}, ${baseY - offsetY})`}>
                         <rect
-                            width={kind === 'impConcurrent' ? iconSize + 10 : iconSize}
+                            width={rectWidth}
                             height={iconSize}
                             rx={3}
                             ry={3}
@@ -153,35 +155,17 @@ const ProcessTreeOperatorNode: React.FC<ProcessTreeNodeProps> = ({
                             stroke="#6366f1"
                             strokeWidth={1.5}
                         />
-                        {kind === 'sync' ? (
-                            <svg viewBox="0 0 15 15" width={iconSize} height={iconSize}>
-                                <path
-                                    d="M8.14645 3.14645C8.34171 2.95118 8.65829 2.95118 8.85355 3.14645L11.8536 6.14645C12.0488 6.34171 12.0488 6.65829 11.8536 6.85355L8.85355 9.85355C8.65829 10.0488 8.34171 10.0488 8.14645 9.85355C7.95118 9.65829 7.95118 9.34171 8.14645 9.14645L10.7929 6.5H4.20711L6.85355 9.14645C7.04882 9.34171 7.04882 9.65829 6.85355 9.85355C6.65829 10.0488 6.34171 10.0488 6.14645 9.85355L3.14645 6.85355C2.95118 6.65829 2.95118 6.34171 3.14645 6.14645L6.14645 3.14645C6.34171 2.95118 6.65829 2.95118 6.85355 3.14645C7.04882 3.34171 7.04882 3.65829 6.85355 3.85355L4.20711 6.5H10.7929L8.14645 3.85355C7.95118 3.65829 7.95118 3.34171 8.14645 3.14645Z"
-                                    fill="#6366f1"
-                                    fillRule="evenodd"
-                                    clipRule="evenodd"
-                                />
-                            </svg>
-                        ) : (
-                            <svg viewBox="0 0 24 15" width={iconSize + 10} height={iconSize}>
-                                <path
-                                    d="M3.14645 3.14645C3.34171 2.95118 3.65829 2.95118 3.85355 3.14645L6.85355 6.14645C7.04882 6.34171 7.04882 6.65829 6.85355 6.85355L3.85355 9.85355C3.65829 10.0488 3.34171 10.0488 3.14645 9.85355C2.95118 9.65829 2.95118 9.34171 3.14645 9.14645L5.79289 6.5H1.5C1.22386 6.5 1 6.27614 1 6C1 5.72386 1.22386 5.5 1.5 5.5H5.79289L3.14645 2.85355C2.95118 2.65829 2.95118 2.34171 3.14645 2.14645Z"
-                                    fill="#6366f1"
-                                    fillRule="evenodd"
-                                    clipRule="evenodd"
-                                    transform="translate(1, 1.5)"
-                                />
-                                <path
-                                    d="M3.14645 3.14645C3.34171 2.95118 3.65829 2.95118 3.85355 3.14645L6.85355 6.14645C7.04882 6.34171 7.04882 6.65829 6.85355 6.85355L3.85355 9.85355C3.65829 10.0488 3.34171 10.0488 3.14645 9.85355C2.95118 9.65829 2.95118 9.34171 3.14645 9.14645L5.79289 6.5H1.5C1.22386 6.5 1 6.27614 1 6C1 5.72386 1.22386 5.5 1.5 5.5H5.79289L3.14645 2.85355C2.95118 2.65829 2.95118 2.34171 3.14645 2.14645Z"
-                                    fill="#6366f1"
-                                    fillRule="evenodd"
-                                    clipRule="evenodd"
-                                    transform="translate(5, 1.5)"
-                                />
-                                <line x1="16" y1="2" x2="16" y2="13" stroke="#6366f1" strokeWidth="1.5" />
-                                <line x1="19" y1="2" x2="19" y2="13" stroke="#6366f1" strokeWidth="1.5" />
-                            </svg>
-                        )}
+                        <text
+                            x={rectWidth / 2}
+                            y={iconSize / 2}
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontSize={9}
+                            fill="#6366f1"
+                            fontFamily="sans-serif"
+                        >
+                            {symbol}
+                        </text>
                     </g>
                 );
             })}
