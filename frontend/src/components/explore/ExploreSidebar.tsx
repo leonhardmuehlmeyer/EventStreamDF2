@@ -44,6 +44,9 @@ const ExploreSidebar: React.FC = () => {
                                 <DndCard title="OCPT Miner" Icon={iconMap.treePine} nodeType="ocptMinerNode" />
                             </SidebarMenuItem>
                             <SidebarMenuItem className="ml-1">
+                                <DndCard title="DF^2 Miner" Icon={iconMap.network} nodeType="df2StreamMinerNode" />
+                            </SidebarMenuItem>
+                            <SidebarMenuItem className="ml-1">
                                 <DndCard
                                     title="Histogram Filter"
                                     Icon={iconMap.chartBar}

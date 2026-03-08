@@ -11,6 +11,7 @@ import OcelFileNode from '~/components/explore/file/OcelFileNode';
 import OcptFileNode from '~/components/explore/file/OcptFileNode';
 import FileSelectionDialog from '~/components/explore/file/ui/FileSelectionDialog';
 import CaseNotionMinerNode from '~/components/explore/miner/CaseNotionMinerNode';
+import Df2StreamMinerNode from '~/components/explore/miner/Df2StreamMinerNode';
 import HistogramMinerNode from '~/components/explore/miner/HistogramMinerNode';
 import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
 import { useConnections } from '~/hooks/explore/useConnections';
@@ -28,6 +29,7 @@ const nodeTypes = {
     caseNotionMinerNode: CaseNotionMinerNode,
     ocelCollectionNode: OcelCollectionNode,
     eventStreamNode: EventStreamNode,
+    df2StreamMinerNode: Df2StreamMinerNode,
 };
 
 const Explore: React.FC = () => {

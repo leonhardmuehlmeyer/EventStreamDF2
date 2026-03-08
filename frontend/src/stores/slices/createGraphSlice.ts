@@ -52,34 +52,39 @@ export const createGraphSlice: StateCreator<ExploreFlowStore, [], [], GraphSlice
         const state = get();
         const nodeToDelete = state.nodes.find((n) => n.id === nodeId);
 
-        // Smart Cleanup: If a FileNode is deleted, remove its assets from connected VisualizationNodes
-        if (nodeToDelete && isFileNode(nodeToDelete)) {
-            const outgoingEdges = state.edges.filter((edge) => edge.source === nodeId);
+        // Smart Cleanup: If a node is deleted, we might want to clear state in connected nodes
+        const incomingEdges = state.edges.filter((edge) => edge.target === nodeId);
+        const outgoingEdges = state.edges.filter((edge) => edge.source === nodeId);
 
-            // Prepare updates for target nodes
-            const updatedNodes = state.nodes.map((node) => {
+        // Prepare updates for all affected nodes
+        const updatedNodes = state.nodes.map((node) => {
+            // Case 1: If a FileNode is deleted, remove its assets from connected VisualizationNodes
+            if (nodeToDelete && isFileNode(nodeToDelete)) {
                 const incomingEdge = outgoingEdges.find((e) => e.target === node.id);
                 if (incomingEdge && isVisualizationNode(node)) {
-                    // Filter out assets that came from the deleted file node
                     const filteredAssets = node.data.assets.filter(
                         (asset) => !nodeToDelete.data.assets.some((sourceAsset) => sourceAsset.id === asset.id)
                     );
                     return { ...node, data: { ...node.data, assets: filteredAssets } };
                 }
-                return node;
-            }) as ExploreNode[];
+            }
 
-            set({ nodes: updatedNodes });
-        }
+            // Case 2: If a Miner is deleted, clear processedData of its source nodes (to reset stream state)
+            const outgoingEdge = incomingEdges.find((e) => e.source === node.id);
+            if (outgoingEdge && node.data.nodeType === 'eventStreamNode') {
+                return { ...node, data: { ...node.data, processedData: null } };
+            }
 
-        set((state) => ({
-            nodes: state.nodes.filter((node) => node.id !== nodeId),
+            return node;
+        }) as ExploreNode[];
+
+        set({
+            nodes: updatedNodes.filter((node) => node.id !== nodeId),
             edges: state.edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
-            // Note: We need to access histogramStates from the full store type
             histogramStates: Object.fromEntries(
                 Object.entries(state.histogramStates).filter(([key]) => key !== nodeId)
             ),
-        }));
+        });
     },
     removeEdge: (edgeId) => {
         const state = get();
