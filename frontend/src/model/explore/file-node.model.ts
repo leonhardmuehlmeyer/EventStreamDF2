@@ -37,6 +37,8 @@ export class FileExploreNode extends BaseExploreNode<FileExploreNodeData> implem
                 return ['ocptFile'] as const;
             case 'ocelCollectionNode':
                 return ['ocelCollectionFile'] as const;
+            case 'eventStreamNode':
+                return ['ocelFile'] as const;
             default:
                 return [] as const;
         }

@@ -27,6 +27,9 @@ const ExploreSidebar: React.FC = () => {
                             <SidebarMenuItem className="ml-1">
                                 <DndCard title="OCEL File" Icon={iconMap.fileSpreadsheet} nodeType="ocelFileNode" />
                             </SidebarMenuItem>
+                            <SidebarMenuItem className="ml-1">
+                                <DndCard title="Event Stream" Icon={iconMap.activity} nodeType="eventStreamNode" />
+                            </SidebarMenuItem>
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
