@@ -15,6 +15,7 @@ export const minerNodeTypes = [
     'histogramMinerNode',
     'caseNotionMinerNode',
     'df2StreamMinerNode',
+    'ocptStreamMinerNode',
 ] as const;
 export type ExploreMinerNodeType = (typeof minerNodeTypes)[number];
 

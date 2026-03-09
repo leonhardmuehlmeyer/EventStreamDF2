@@ -14,6 +14,7 @@ import CaseNotionMinerNode from '~/components/explore/miner/CaseNotionMinerNode'
 import Df2StreamMinerNode from '~/components/explore/miner/Df2StreamMinerNode';
 import HistogramMinerNode from '~/components/explore/miner/HistogramMinerNode';
 import OcptMinerNode from '~/components/explore/miner/OcptMinerNode';
+import OcptStreamMinerNode from '~/components/explore/miner/OcptStreamMinerNode';
 import { useConnections } from '~/hooks/explore/useConnections';
 import { useDragDrop } from '~/hooks/explore/useDragDrop';
 import { useNodeOperations } from '~/hooks/explore/useNodeOperations';
@@ -30,6 +31,7 @@ const nodeTypes = {
     ocelCollectionNode: OcelCollectionNode,
     eventStreamNode: EventStreamNode,
     df2StreamMinerNode: Df2StreamMinerNode,
+    ocptStreamMinerNode: OcptStreamMinerNode,
 };
 
 const Explore: React.FC = () => {

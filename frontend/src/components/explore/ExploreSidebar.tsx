@@ -39,12 +39,15 @@ const ExploreSidebar: React.FC = () => {
                         <p className="ml-1">Miner</p>
                     </SidebarGroupLabel>
                     <SidebarGroupContent className="p-1">
-                        <SidebarMenu className="flex flex-row">
+                        <SidebarMenu className="flex flex-row flex-wrap gap-y-2">
                             <SidebarMenuItem className="ml-1">
                                 <DndCard title="OCPT Miner" Icon={iconMap.treePine} nodeType="ocptMinerNode" />
                             </SidebarMenuItem>
                             <SidebarMenuItem className="ml-1">
-                                <DndCard title="DF^2 Miner" Icon={iconMap.network} nodeType="df2StreamMinerNode" />
+                                <DndCard title="DF2 Live" Icon={iconMap.activity} nodeType="df2StreamMinerNode" />
+                            </SidebarMenuItem>
+                            <SidebarMenuItem className="ml-1">
+                                <DndCard title="OCPT Live" Icon={iconMap.treePine} nodeType="ocptStreamMinerNode" />
                             </SidebarMenuItem>
                             <SidebarMenuItem className="ml-1">
                                 <DndCard
