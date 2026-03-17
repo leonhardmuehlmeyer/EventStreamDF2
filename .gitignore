@@ -31,3 +31,6 @@ backend/BACKEND_CONTEXT.md
 # Local conformance compare helper scripts
 backend/tools/conformance_compare/compare_original_vs_backend.py
 backend/tools/conformance_compare/debug_control_precision_diff.py
+
+# test data
+evaluation_ocels
