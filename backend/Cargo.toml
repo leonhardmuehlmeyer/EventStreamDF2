@@ -39,3 +39,7 @@ lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[[bin]]
+name = "ocel_converter"
+path = "src/bin/ocel_converter.rs"

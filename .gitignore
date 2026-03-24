@@ -34,3 +34,4 @@ backend/tools/conformance_compare/debug_control_precision_diff.py
 
 # test data
 evaluation_ocels
+backend/evaluation_results.csv
