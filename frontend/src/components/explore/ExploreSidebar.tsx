@@ -62,6 +62,19 @@ const ExploreSidebar: React.FC = () => {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
+                <SidebarGroup>
+                    <SidebarGroupLabel>
+                        <iconMap.chartBar />
+                        <p className="ml-1">Visualization</p>
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent className="p-1">
+                        <SidebarMenu className="flex flex-row flex-wrap gap-y-2">
+                            <SidebarMenuItem className="ml-1">
+                                <DndCard title="Event Dist." Icon={iconMap.chartBar} nodeType="eventDistributionNode" />
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
             </SidebarContent>
         </Sidebar>
     );

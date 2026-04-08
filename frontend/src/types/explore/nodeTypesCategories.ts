@@ -6,6 +6,7 @@ export const visualizationNodeTypes = [
     'lbofVisualizationNode',
     'eventGraphVisualizationNode',
     'histVisualizationNode',
+    'eventDistributionNode',
 ] as const;
 export type ExploreVisualizationNodeType = (typeof visualizationNodeTypes)[number];
 
